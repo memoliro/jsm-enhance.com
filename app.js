@@ -235,6 +235,11 @@ const mockBackend = {
     const rnd = () => Math.random().toString(36).slice(2, 6).toUpperCase();
     return { code: `MOCK-${rnd()}-${rnd()}`, credits: CONFIG.CREDITS_PER_COFFEE };
   },
+  async buyStripe() {
+    await new Promise(r => setTimeout(r, 1200)); // simulate Stripe Checkout
+    const rnd = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+    return { code: `MOCK-${rnd()}-${rnd()}`, credits: CONFIG.CREDITS_PER_COFFEE };
+  },
 };
 
 const workerBackend = {
@@ -274,6 +279,16 @@ const workerBackend = {
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'Could not start PayPal checkout');
     location.href = j.approval_url; // returns after approval; we capture on load
+    return new Promise(() => {});
+  },
+  async buyStripe() {
+    const res = await fetch(CONFIG.API_BASE + '/api/stripe/create-checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pack: 'coffee' }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'Could not start card checkout');
+    location.href = j.checkout_url; // Stripe hosted page; returns with ?stripe_session=
     return new Promise(() => {});
   },
 };
@@ -319,15 +334,15 @@ $('againBtn').onclick = () => { $('resultWrap').hidden = true; updateExtendUI();
 
 /* ---------- buy + redeem ---------- */
 $('payHint').textContent = DEMO
-  ? 'Demo mode: the PayPal button simulates a payment and issues a test code.'
-  : `Secure PayPal checkout. ${CONFIG.CREDITS_PER_COFFEE} credits per coffee.`;
+  ? 'Demo mode: the PayPal and card buttons simulate a payment and issue a test code.'
+  : `Secure checkout via PayPal or card. ${CONFIG.CREDITS_PER_COFFEE} credits per coffee.`;
 
-$('paypalBuyBtn').onclick = async () => {
-  const btn = $('paypalBuyBtn');
+async function startPurchase(kind) {
+  const btn = $(kind === 'stripe' ? 'stripeBuyBtn' : 'paypalBuyBtn');
   btn.disabled = true;
-  $('payHint').textContent = 'Opening PayPal…';
+  $('payHint').textContent = kind === 'stripe' ? 'Opening secure card checkout…' : 'Opening PayPal…';
   try {
-    const r = await backend.buyCoffee();
+    const r = await (kind === 'stripe' ? backend.buyStripe() : backend.buyCoffee());
     if (r && r.code) {
       // Hand the code to the user (no auto-redeem): they may screenshot it
       // and redeem later — it stays valid even if the browser is cleared.
@@ -338,7 +353,9 @@ $('paypalBuyBtn').onclick = async () => {
   } finally {
     btn.disabled = false;
   }
-};
+}
+$('paypalBuyBtn').onclick = () => startPurchase('paypal');
+$('stripeBuyBtn').onclick = () => startPurchase('stripe');
 
 $('redeemBtn').onclick = () => doRedeem($('codeInput').value, false);
 
@@ -386,6 +403,27 @@ async function doRedeem(code, auto) {
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'Capture failed');
+    showPurchasedCode(j.code);
+  } catch (e) {
+    $('payHint').textContent = 'Could not confirm payment: ' + (e.message || e);
+  }
+})();
+
+/* Stripe return: ?stripe_session=ID → verify → show code */
+(async function handleStripeReturn() {
+  const q = new URLSearchParams(location.search);
+  const sid = q.get('stripe_session');
+  if (!sid || DEMO) return;
+  history.replaceState(null, '', location.pathname);
+  openModal();
+  $('payHint').textContent = 'Confirming your card payment…';
+  try {
+    const res = await fetch(CONFIG.API_BASE + '/api/stripe/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sid }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'Verification failed');
     showPurchasedCode(j.code);
   } catch (e) {
     $('payHint').textContent = 'Could not confirm payment: ' + (e.message || e);

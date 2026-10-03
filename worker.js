@@ -156,6 +156,60 @@ async function handleCapture(req, env) {
   return json({ code, credits: PACKS.coffee.credits });
 }
 
+/* ---------- Stripe (card payments) ----------
+   Same gift-card model as PayPal: hosted Checkout -> return with session id ->
+   worker verifies PAID status with Stripe's API server-side, then mints a
+   single-use code. No webhooks needed. Secret key stays in worker secrets. */
+async function handleStripeCreate(req, env) {
+  if (!env.STRIPE_SECRET_KEY) return json({ error: 'Card payments not configured yet.' }, 503);
+  const appUrl = env.APP_URL || 'https://jsm-extend.example.com/';
+  const params = new URLSearchParams({
+    'payment_method_types[]': 'card',
+    'line_items[0][price_data][currency]': 'usd',
+    'line_items[0][price_data][unit_amount]': '500',
+    'line_items[0][price_data][product_data][name]': 'JSM Extend — 50 credits',
+    'line_items[0][quantity]': '1',
+    mode: 'payment',
+    success_url: appUrl + '?stripe_session={CHECKOUT_SESSION_ID}',
+    cancel_url: appUrl,
+  });
+  const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + env.STRIPE_SECRET_KEY, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const session = await res.json();
+  if (!res.ok || !session.url) return json({ error: 'Stripe checkout failed' }, 502);
+  await env.DB.prepare('INSERT OR IGNORE INTO orders (order_id, status, created_at) VALUES (?, ?, ?)')
+    .bind('stripe:' + session.id, 'created', Date.now()).run();
+  return json({ checkout_url: session.url });
+}
+
+async function handleStripeVerify(req, env) {
+  if (!env.STRIPE_SECRET_KEY) return json({ error: 'Card payments not configured yet.' }, 503);
+  const { sessionId } = await req.json().catch(() => ({}));
+  if (!sessionId) return json({ error: 'Missing sessionId' }, 400);
+  const key = 'stripe:' + sessionId;
+  const existing = await env.DB.prepare('SELECT code FROM orders WHERE order_id = ? AND status = ?')
+    .bind(key, 'captured').first();
+  if (existing?.code) return json({ code: existing.code, credits: PACKS.coffee.credits });
+
+  // Verified server-side with Stripe: only PAID sessions mint codes.
+  const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+    headers: { 'Authorization': 'Bearer ' + env.STRIPE_SECRET_KEY },
+  });
+  const s = await res.json();
+  if (!res.ok || s.payment_status !== 'paid') return json({ error: 'Payment not completed' }, 402);
+
+  const code = makeCode();
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, PACKS.coffee.credits, now),
+    env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?').bind('captured', code, key),
+  ]);
+  return json({ code, credits: PACKS.coffee.credits });
+}
+
 /* ---------- extend via Replicate (credit-gated) ---------- */
 async function replicatePrediction(env, input) {
   const create = await fetch('https://api.replicate.com/v1/predictions', {
@@ -225,6 +279,8 @@ export default {
       if (url.pathname === '/api/balance' && req.method === 'GET') return handleBalance(req, env);
       if (url.pathname === '/api/paypal/create-order' && req.method === 'POST') return handleCreateOrder(req, env);
       if (url.pathname === '/api/paypal/capture' && req.method === 'POST') return handleCapture(req, env);
+      if (url.pathname === '/api/stripe/create-checkout' && req.method === 'POST') return handleStripeCreate(req, env);
+      if (url.pathname === '/api/stripe/verify' && req.method === 'POST') return handleStripeVerify(req, env);
       if (url.pathname === '/api/extend' && req.method === 'POST') return handleExtend(req, env);
       if (url.pathname === '/api/health') return json({ ok: true, live: !!env.REPLICATE_API_TOKEN });
       return json({ error: 'Not found' }, 404);

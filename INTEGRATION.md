@@ -24,6 +24,18 @@ without memoli — all three require his own accounts.
   (user approves on PayPal → returns to the app → worker captures the
   order and mints the single-use code).
 
+## 2b. Stripe credentials (card payments — optional but recommended)
+- Go to https://dashboard.stripe.com → Developers → API keys → create a
+  **restricted secret key** (live mode) with only `checkout.sessions`
+  read/write permission, or use the full secret key.
+- It becomes the worker secret `STRIPE_SECRET_KEY`. Never paste it in chat —
+  give it to Muse via the secure credential flow.
+- No webhook needed: the app uses Stripe's hosted Checkout page + return-URL
+  verification (worker checks `payment_status === 'paid'` via Stripe's API
+  before minting the code). `APP_URL` must be the live site URL for the
+  return redirect to work.
+- Stripe fee on $5: ~$0.30 + 2.9% ≈ $0.45, same as PayPal.
+
 ## 3. Cloudflare deploy (the server)
 - `npx wrangler login` (his Cloudflare account), then in this folder:
   - `npx wrangler d1 create jsm-extend-db` → put the database_id in
@@ -31,6 +43,7 @@ without memoli — all three require his own accounts.
   - `npx wrangler secret put REPLICATE_API_TOKEN`
   - `npx wrangler secret put PAYPAL_CLIENT_ID`
   - `npx wrangler secret put PAYPAL_CLIENT_SECRET`
+  - `npx wrangler secret put STRIPE_SECRET_KEY` (only if taking card payments)
   - Set vars in `wrangler.toml`: `APP_URL` (the live site URL),
     `PAYPAL_BASE = https://api-m.paypal.com`
   - `npx wrangler deploy`
@@ -63,6 +76,8 @@ generation may run:
 - PayPal: codes are minted only after the worker verifies `COMPLETED`
   status via PayPal's API server-side. Skipping payment and calling
   `/capture` directly fails closed.
+- Stripe: same — codes are minted only after the worker verifies
+  `payment_status === 'paid'` via Stripe's API server-side.
 - Replicate key lives only in worker secrets, never in frontend JS.
 - AI failures refund the credit (`+1`) — users never pay for errors.
 

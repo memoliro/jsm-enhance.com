@@ -47,7 +47,9 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border)}
 .btn-coffee{background:#FFDD00;color:#000!important}
-.btn-paypal{background:#003087;color:#fff}
+.btn-paypal{background:#003087;color:#fff;width:100%;justify-content:center;margin-top:8px}
+.btn-stripe{background:#635bff;color:#fff;width:100%;justify-content:center;margin-top:8px}
+.btn-stripe:hover{background:#4e47d6}
 .cost{background:rgba(255,255,255,.25);border-radius:999px;padding:2px 10px;font-size:.85rem}
 .extend-row{margin:10px 0}
 .progress{display:flex;align-items:center;gap:12px;margin:14px 0}
@@ -75,3 +77,4 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .code-box{margin-top:10px;padding:14px;border:2px dashed var(--primary);border-radius:12px;text-align:center;background:var(--bg)}
 .code-value{font-family:ui-monospace,monospace;font-size:1.5em;letter-spacing:3px;margin:10px 0;color:var(--primary);font-weight:700}
 .code-box p{margin:8px 0 0}
+.btn-stripe:hover{background:#4e47d6}
