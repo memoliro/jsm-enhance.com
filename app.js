@@ -359,10 +359,11 @@ async function doRedeem(code, auto) {
   const msg = $('redeemMsg');
   msg.className = 'muted'; msg.textContent = 'Checking…';
   try {
+    const before = balance;
     const r = await backend.redeem(code, store.token);
     if (r.token) store.token = r.token; // server may issue a fresh wallet
     setBalance(r.credits); // server total is authoritative
-    msg.className = 'ok'; msg.textContent = `+${r.credits} credits added!`;
+    msg.className = 'ok'; msg.textContent = `+${r.credits - before} credits added!`;
     if (!auto) $('codeInput').value = '';
     updateExtendUI();
   } catch (e) {
