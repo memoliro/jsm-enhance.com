@@ -329,10 +329,9 @@ $('paypalBuyBtn').onclick = async () => {
   try {
     const r = await backend.buyCoffee();
     if (r && r.code) {
-      // Demo (or return-from-PayPal) flow: we have a code — auto-redeem it
-      $('payHint').innerHTML = `Payment received! Your code: <b style="font-family:monospace">${r.code}</b><br>Redeeming…`;
-      await doRedeem(r.code, true);
-      $('payHint').textContent = `Done — ${CONFIG.CREDITS_PER_COFFEE} credits added. Enjoy!`;
+      // Hand the code to the user (no auto-redeem): they may screenshot it
+      // and redeem later — it stays valid even if the browser is cleared.
+      showPurchasedCode(r.code);
     }
   } catch (e) {
     $('payHint').textContent = 'Payment failed: ' + (e.message || e);
@@ -342,6 +341,19 @@ $('paypalBuyBtn').onclick = async () => {
 };
 
 $('redeemBtn').onclick = () => doRedeem($('codeInput').value, false);
+
+/* Show a purchased code gift-card style: user keeps it, screenshots it,
+   and redeems when ready — it stays valid even if the browser is cleared. */
+function showPurchasedCode(code) {
+  $('payHint').innerHTML =
+    '<div class="code-box"><div class="muted small">Payment received! Your code:</div>' +
+    '<div class="code-value"></div>' +
+    '<p class="muted small">📸 Take a screenshot of this code and keep it safe — it works even if you clear your browser. ' +
+    'Single-use: once redeemed, your remaining credits live in this browser\'s wallet.</p></div>';
+  $('payHint').querySelector('.code-value').textContent = code;
+  $('codeInput').value = code;
+  $('redeemMsg').className = 'muted'; $('redeemMsg').textContent = '';
+}
 
 async function doRedeem(code, auto) {
   const msg = $('redeemMsg');
@@ -373,8 +385,7 @@ async function doRedeem(code, auto) {
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'Capture failed');
-    $('payHint').innerHTML = `Payment confirmed! Your code: <b style="font-family:monospace">${j.code}</b>`;
-    await doRedeem(j.code, true);
+    showPurchasedCode(j.code);
   } catch (e) {
     $('payHint').textContent = 'Could not confirm payment: ' + (e.message || e);
   }
