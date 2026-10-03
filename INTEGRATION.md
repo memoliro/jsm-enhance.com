@@ -43,9 +43,35 @@ worker URL enables: real Replicate outpainting, real PayPal checkout,
 real single-use codes in D1. Everything else (credits UI, redeem,
 paywall, theme) works identically.
 
+## Security model (hardened 2026-10-03)
+
+The worker owns the credit ledger — the browser never decides whether a
+generation may run:
+
+- Every `/api/extend` call must present a **wallet token**. The worker
+  atomically decrements (`UPDATE wallets SET credits = credits - 1 WHERE
+  token = ? AND credits > 0`) **before** calling Replicate. No valid token
+  with credits → `402`, $0 GPU spent. Calling the endpoint directly with
+  curl is useless.
+- The browser stores only the token; the displayed balance is a copy of
+  the server ledger, refreshed from `/api/balance` and after each action.
+  Editing localStorage cannot create credits.
+- Free trial: `/api/trial` issues 1 credit per **IP** (`CF-Connecting-IP`),
+  tracked in D1 — clearing browser data does not grant another trial.
+- Codes: 12-char random (`32^12` space, unguessable), single-use, burned
+  atomically on redeem. Redemption tops up the caller's wallet.
+- PayPal: codes are minted only after the worker verifies `COMPLETED`
+  status via PayPal's API server-side. Skipping payment and calling
+  `/capture` directly fails closed.
+- Replicate key lives only in worker secrets, never in frontend JS.
+- AI failures refund the credit (`+1`) — users never pay for errors.
+
+Remaining accepted risks: per-IP trials can be rotated with VPNs (bounded
+to 1 free image each — negligible cost); digital-goods chargebacks on $5.
+
 ## Files
 - `index.html`, `style.css`, `app.js` — the static site (deploy anywhere:
   GitHub Pages, Cloudflare Pages, or his usual static host)
 - `worker.js` — Cloudflare Worker (API + payments + AI)
-- `schema.sql` — D1 tables (codes, orders, usage_log)
+- `schema.sql` — D1 tables (codes, orders, usage_log, wallets, trials)
 - `wrangler.toml` — still to create at deploy time (needs his D1 id)
