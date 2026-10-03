@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSM Extend — AI Image Extender (Outpainting)</title>
+<meta name="description" content="Expand your photos with AI. Upload an image, pick a new aspect ratio, and let AI generate the extended background. Free trial, then pay-per-use credits — no account needed.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+<script>
+// light-first: default to light unless a saved preference exists
+(function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="logo" href="./"><span class="logo-icon">JSM</span><span class="logo-text">Extend</span></a>
+    <div class="header-right">
+      <button id="creditsPill" class="credits-pill" title="Your credits">🪙 <span id="creditsCount">–</span></button>
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">🌙 <span>Dark</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>AI Image Extender</h1>
+    <p class="sub">Upload a photo, pick a new aspect ratio, and AI paints the extended background — no cropping, no stretching. <strong>1 free trial</strong>, then credits via PayPal. No account, no subscription.</p>
+  </section>
+
+  <div id="demoBanner" class="banner" hidden>🧪 <b>Demo mode</b> — results are simulated with a blurred fill. Connect the AI backend for real outpainting.</div>
+
+  <!-- STEP 1 -->
+  <section class="card" id="stepUpload">
+    <h2><span class="step">1</span> Upload an image</h2>
+    <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload an image">
+      <div class="dz-inner">
+        <div class="dz-icon">📤</div>
+        <p><b>Drag &amp; drop</b> an image here, or <b>browse</b></p>
+        <p class="muted">JPG, PNG, WebP — stays in your browser until you extend</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="card" id="stepRatio" hidden>
+    <h2><span class="step">2</span> Choose the new size</h2>
+    <div class="ratio-grid" id="ratioGrid"></div>
+    <div class="custom-ratio">
+      <label>Custom <input type="number" id="customW" min="1" max="9999" placeholder="W"> : <input type="number" id="customH" min="1" max="9999" placeholder="H"></label>
+      <button id="customApply" class="btn btn-secondary">Apply</button>
+    </div>
+    <div class="preview-wrap">
+      <canvas id="previewCanvas"></canvas>
+      <p class="muted" id="previewInfo"></p>
+    </div>
+    <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
+      <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
+    </label>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="card" id="stepExtend" hidden>
+    <h2><span class="step">3</span> Extend it</h2>
+    <p id="costLine" class="muted"></p>
+    <div class="extend-row">
+      <button id="extendBtn" class="btn btn-primary">✨ Extend image <span class="cost">1 🪙</span></button>
+    </div>
+    <div id="progress" class="progress" hidden>
+      <div class="spinner"></div>
+      <p id="progressText">Painting the new background…</p>
+    </div>
+    <div id="resultWrap" hidden>
+      <h3>Result</h3>
+      <img id="resultImg" alt="Extended image result">
+      <div class="result-actions">
+        <a id="downloadBtn" class="btn btn-primary" download="jsm-extend.png">⬇ Download PNG</a>
+        <button id="againBtn" class="btn btn-secondary">↻ Extend again</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card support-card">
+    <h2>Support the site</h2>
+    <p class="muted">JSM Extend stays free to try. If it helps, you can buy a coffee.</p>
+    <a href="https://www.buymeacoffee.com/memoliro" target="_blank" rel="noopener" class="btn btn-coffee">☕ Buy me a coffee</a>
+  </section>
+
+  <section class="card faq">
+    <h2>How it works</h2>
+    <details open><summary>What does the AI actually do?</summary>
+      <p>It <b>outpaints</b>: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped.</p></details>
+    <details><summary>How do credits work?</summary>
+      <p>1 credit = 1 extended image. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal — you'll get a single-use code, paste it in, and the credits land in your browser. No account, no subscription, no card stored anywhere.</p></details>
+    <details><summary>Do my photos get stored?</summary>
+      <p>No. Your image is sent to the AI provider for the few seconds of processing, then discarded. Nothing is kept on our servers.</p></details>
+    <details><summary>What sizes work best?</summary>
+      <p>Modest expansions (e.g. 4:3 → 16:9) look the most natural. Extreme flips (square → tall 9:16) work but give the AI a lot of canvas to invent — results vary.</p></details>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 JSM Extend · Educational tool · AI results may vary</p>
+  <p class="muted">More free tools: <a href="https://jsm-image.com/">JSM Image</a> · <a href="https://jsm-video.com/">JSM Video</a> · <a href="https://jsm-options.com/">JSM Options</a></p>
+</footer>
+
+<!-- Credits / paywall modal -->
+<div id="creditsModal" class="modal" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    <h2>🪙 Credits</h2>
+    <p class="balance">Balance: <b id="modalBalance">0</b> credits</p>
+    <div id="buySection">
+      <h3>Get more credits</h3>
+      <p class="muted">1 coffee ($5) = <b>50 credits</b>. Pay with PayPal, get a single-use code, paste it below.</p>
+      <button id="paypalBuyBtn" class="btn btn-paypal">🅿 Pay $5 with PayPal</button>
+      <p class="muted small" id="payHint"></p>
+    </div>
+    <div class="redeem">
+      <h3>Redeem a code</h3>
+      <div class="redeem-row">
+        <input type="text" id="codeInput" placeholder="XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+        <button id="redeemBtn" class="btn btn-secondary">Redeem</button>
+      </div>
+      <p id="redeemMsg" class="muted"></p>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
