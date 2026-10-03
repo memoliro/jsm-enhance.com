@@ -16,3 +16,15 @@ CREATE TABLE IF NOT EXISTS usage_log (
   created_at INTEGER NOT NULL,
   credits_spent INTEGER NOT NULL DEFAULT 1
 );
+-- Server-side credit ledger. The browser never decides balances.
+CREATE TABLE IF NOT EXISTS wallets (
+  token TEXT PRIMARY KEY,
+  credits INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+-- One free trial per IP, enforced server-side (not per-browser).
+CREATE TABLE IF NOT EXISTS trials (
+  ip TEXT PRIMARY KEY,
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);

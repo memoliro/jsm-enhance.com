@@ -11,12 +11,15 @@ const CONFIG = {
 const DEMO = !CONFIG.API_BASE;
 
 const $ = id => document.getElementById(id);
+/* Credits are enforced SERVER-SIDE. The browser only holds a wallet token;
+   the displayed balance is a copy of the server's ledger, refreshed after
+   every action. Editing localStorage cannot create credits. */
 const store = {
-  get credits() { return parseInt(localStorage.getItem('jsm-extend-credits') || '0', 10) || 0; },
-  set credits(v) { localStorage.setItem('jsm-extend-credits', String(Math.max(0, v))); renderCredits(); },
-  get usedCodes() { try { return JSON.parse(localStorage.getItem('jsm-extend-usedcodes') || '[]'); } catch { return []; } },
-  markCodeUsed(c) { const u = store.usedCodes; u.push(c); localStorage.setItem('jsm-extend-usedcodes', JSON.stringify(u)); },
+  get token() { try { return localStorage.getItem('jsm-extend-token') || ''; } catch { return ''; } },
+  set token(v) { try { localStorage.setItem('jsm-extend-token', v || ''); } catch {} },
 };
+let balance = 0;
+function setBalance(v) { balance = Math.max(0, parseInt(v, 10) || 0); renderCredits(); }
 
 /* ---------- theme ---------- */
 (function initTheme() {
@@ -28,14 +31,21 @@ const store = {
 
 /* ---------- credits ---------- */
 function renderCredits() {
-  $('creditsCount').textContent = store.credits;
-  $('modalBalance').textContent = store.credits;
+  $('creditsCount').textContent = balance;
+  $('modalBalance').textContent = balance;
 }
-function ensureTrialCredit() {
-  if (localStorage.getItem('jsm-extend-init') === null) {
-    localStorage.setItem('jsm-extend-init', '1');
-    if (store.credits === 0) store.credits = CONFIG.FREE_TRIAL_CREDITS;
-  }
+/* Wallet bootstrap: server-issued trial (1 per IP in live mode). */
+async function ensureWallet() {
+  if (store.token) { await refreshBalance(); return; }
+  try {
+    const r = await backend.trial();
+    store.token = r.token;
+    setBalance(r.credits);
+  } catch (e) { setBalance(0); }
+}
+async function refreshBalance() {
+  try { const r = await backend.balance(store.token); setBalance(r.credits); }
+  catch (e) { /* keep last known balance */ }
 }
 
 /* ---------- modal ---------- */
@@ -166,13 +176,30 @@ function updateExtendUI() {
   const needsExt = layout && !layout.none;
   btn.disabled = !needsExt;
   $('costLine').textContent = needsExt
-    ? `This will use 1 credit. You have ${store.credits}.`
+    ? `This will use 1 credit. You have ${balance}.`
     : 'This ratio matches your image — no extension needed.';
 }
 
 /* ---------- backends ---------- */
+/* Demo backend mirrors the server's security model client-side:
+   token wallets, atomic debit, single-use codes, one trial. */
 const mockBackend = {
-  async extend(imageDataUrl, out, prompt) {
+  _wallets() { try { return JSON.parse(localStorage.getItem('jsm-extend-mock-w') || '{}'); } catch { return {}; } },
+  _saveW(w) { try { localStorage.setItem('jsm-extend-mock-w', JSON.stringify(w)); } catch {} },
+  _tok() { return 'mock-' + Math.random().toString(36).slice(2, 14); },
+  async trial() {
+    await new Promise(r => setTimeout(r, 300));
+    if (localStorage.getItem('jsm-extend-mock-trial')) throw new Error('Trial already used');
+    localStorage.setItem('jsm-extend-mock-trial', '1');
+    const t = this._tok(), w = this._wallets();
+    w[t] = CONFIG.FREE_TRIAL_CREDITS; this._saveW(w);
+    return { token: t, credits: CONFIG.FREE_TRIAL_CREDITS };
+  },
+  async balance(token) { return { credits: this._wallets()[token] || 0 }; },
+  async extend(imageDataUrl, out, prompt, token) {
+    const w = this._wallets();
+    if (!w[token] || w[token] < 1) { const e = new Error('No credits — buy more to continue.'); e.code = 402; throw e; }
+    w[token]--; this._saveW(w); // atomic debit before work
     await new Promise(r => setTimeout(r, 2200)); // simulate AI latency
     // Simulated result: blurred-fill background (like JSM Image's blurred fit)
     const src = await loadImage(imageDataUrl);
@@ -181,20 +208,27 @@ const mockBackend = {
     const x = c.getContext('2d');
     const blur = Math.max(8, Math.round(Math.min(out.tw, out.th) / 28));
     x.filter = `blur(${blur}px)`;
-    // cover-draw the source as background
     const sc = Math.max(out.tw / out.w, out.th / out.h);
     const bw = out.w * sc, bh = out.h * sc;
     x.drawImage(src, (out.tw - bw) / 2, (out.th - bh) / 2, bw, bh);
     x.filter = 'none';
     x.drawImage(src, out.left, out.up, out.w, out.h);
-    return { image_b64: c.toDataURL('image/png'), mock: true };
+    return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
   },
-  async redeem(code) {
+  async redeem(code, token) {
     await new Promise(r => setTimeout(r, 400));
     code = code.trim().toUpperCase();
     if (!/^MOCK-[A-Z0-9]{4}(-[A-Z0-9]{4})?$/.test(code)) throw new Error('Invalid code format.');
-    if (store.usedCodes.includes(code)) throw new Error('This code was already redeemed.');
-    return { credits: CONFIG.CREDITS_PER_COFFEE };
+    let used = [];
+    try { used = JSON.parse(localStorage.getItem('jsm-extend-mock-used') || '[]'); } catch {}
+    if (used.includes(code)) throw new Error('This code was already redeemed.');
+    used.push(code);
+    try { localStorage.setItem('jsm-extend-mock-used', JSON.stringify(used)); } catch {}
+    const w = this._wallets();
+    const t = (token && w[token] !== undefined) ? token : this._tok();
+    w[t] = (w[t] || 0) + CONFIG.CREDITS_PER_COFFEE;
+    this._saveW(w);
+    return { token: t, credits: w[t] };
   },
   async buyCoffee() {
     await new Promise(r => setTimeout(r, 1200)); // simulate PayPal
@@ -204,18 +238,29 @@ const mockBackend = {
 };
 
 const workerBackend = {
-  async extend(imageDataUrl, out, prompt) {
-    const res = await fetch(CONFIG.API_BASE + '/api/extend', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: imageDataUrl, outpaint: { left: out.left, right: out.right, up: out.up, down: out.down }, prompt }),
-    });
-    if (!res.ok) throw new Error('Server error ' + res.status);
+  async trial() {
+    const res = await fetch(CONFIG.API_BASE + '/api/trial', { method: 'POST' });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'Trial failed');
+    return j;
+  },
+  async balance(token) {
+    const res = await fetch(CONFIG.API_BASE + '/api/balance?token=' + encodeURIComponent(token || ''));
     return res.json();
   },
-  async redeem(code) {
+  async extend(imageDataUrl, out, prompt, token) {
+    const res = await fetch(CONFIG.API_BASE + '/api/extend', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, image: imageDataUrl, outpaint: { left: out.left, right: out.right, up: out.up, down: out.down }, prompt }),
+    });
+    const j = await res.json();
+    if (!res.ok) { const e = new Error(j.error || 'Extend failed'); e.code = res.status; throw e; }
+    return j;
+  },
+  async redeem(code, token) {
     const res = await fetch(CONFIG.API_BASE + '/api/redeem', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code.trim() }),
+      body: JSON.stringify({ code: code.trim(), token: token || '' }),
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'Redeem failed');
@@ -247,21 +292,23 @@ function workingImageDataUrl(out) {
 /* ---------- extend flow ---------- */
 $('extendBtn').onclick = async () => {
   if (!layout || layout.none) return;
-  if (store.credits < 1) { openModal(); return; }
+  if (balance < 1) { openModal(); return; }
   const out = workingLayout();
   const prompt = $('promptInput').value.trim();
   $('progress').hidden = false;
   $('resultWrap').hidden = true;
   $('extendBtn').disabled = true;
   try {
-    const r = await backend.extend(workingImageDataUrl(out), out, prompt);
-    store.credits = store.credits - 1; // deduct only on success
+    // The server atomically deducts 1 credit; the returned balance is authoritative.
+    const r = await backend.extend(workingImageDataUrl(out), out, prompt, store.token);
+    setBalance(r.credits);
     $('resultImg').src = r.image_b64 || r.image_url;
     $('downloadBtn').href = r.image_b64 || r.image_url;
     $('resultWrap').hidden = false;
     $('demoBanner').hidden = !r.mock;
     $('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) {
+    if (e.code === 402) { setBalance(0); openModal(); return; } // server says empty
     alert('Extension failed: ' + (e.message || e) + '\nNo credit was used.');
   } finally {
     $('progress').hidden = true;
@@ -300,9 +347,9 @@ async function doRedeem(code, auto) {
   const msg = $('redeemMsg');
   msg.className = 'muted'; msg.textContent = 'Checking…';
   try {
-    const r = await backend.redeem(code);
-    store.markCodeUsed(code.trim().toUpperCase());
-    store.credits = store.credits + r.credits;
+    const r = await backend.redeem(code, store.token);
+    if (r.token) store.token = r.token; // server may issue a fresh wallet
+    setBalance(r.credits); // server total is authoritative
     msg.className = 'ok'; msg.textContent = `+${r.credits} credits added!`;
     if (!auto) $('codeInput').value = '';
     updateExtendUI();
@@ -334,6 +381,5 @@ async function doRedeem(code, auto) {
 })();
 
 /* ---------- init ---------- */
-ensureTrialCredit();
-renderCredits();
+ensureWallet();
 $('demoBanner').hidden = !DEMO;

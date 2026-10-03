@@ -1,10 +1,17 @@
-/* JSM Extend — Cloudflare Worker backend.
+/* JSM Extend — Cloudflare Worker backend (hardened).
+ *
+ * SECURITY MODEL: the worker owns the credit ledger. The browser NEVER decides
+ * whether a generation may run — every /api/extend call must present a wallet
+ * token, and credits are decremented ATOMICALLY in D1 before the GPU is touched.
+ * Calling the endpoint directly with curl and no valid token = 402, $0 spent.
  *
  * Endpoints:
- *   POST /api/redeem               {code} -> {credits}            (burns single-use code)
- *   POST /api/paypal/create-order  {pack} -> {approval_url}
- *   POST /api/paypal/capture       {orderId} -> {code}
- *   POST /api/extend               {image, outpaint:{left,right,up,down}, prompt} -> {image_url}
+ *   POST /api/trial                 -> {token, credits}   (1 free credit per IP)
+ *   POST /api/redeem      {code, token?} -> {token, credits} (burns single-use code, tops up wallet)
+ *   GET  /api/balance?token=...    -> {credits}
+ *   POST /api/paypal/create-order   {pack} -> {approval_url}
+ *   POST /api/paypal/capture        {orderId} -> {code}
+ *   POST /api/extend      {token, image, outpaint, prompt} -> {image_url, credits}
  *
  * Bindings: DB (D1). Secrets: REPLICATE_API_TOKEN, PAYPAL_CLIENT_ID,
  * PAYPAL_CLIENT_SECRET. Vars: PAYPAL_BASE, APP_URL, REPLICATE_MODEL_VERSION.
@@ -12,21 +19,75 @@
 
 const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804'; // fermatresearch/sdxl-outpainting-lora — verify current before prod
 const PACKS = { coffee: { usd: '5.00', credits: 50, label: 'JSM Extend — 50 credits' } };
+const TRIAL_CREDITS = 1;
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
-function makeCode() {
-  const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function randStr(len, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') {
+  const buf = crypto.getRandomValues(new Uint8Array(len));
   let s = '';
-  const buf = crypto.getRandomValues(new Uint8Array(12));
-  for (let i = 0; i < 12; i++) s += a[buf[i] % a.length];
-  return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8, 12)}`;
+  for (let i = 0; i < len; i++) s += alphabet[buf[i] % alphabet.length];
+  return s;
+}
+const makeCode = () => { const s = randStr(12); return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8, 12)}`; };
+const makeToken = () => randStr(32, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
+const clientIp = req => req.headers.get('CF-Connecting-IP') || 'unknown';
+
+/* ---------- wallets ---------- */
+async function getOrCreateWallet(env, token) {
+  token = String(token || '');
+  if (token) {
+    const w = await env.DB.prepare('SELECT token FROM wallets WHERE token = ?').bind(token).first();
+    if (w) return token;
+  }
+  const t = makeToken();
+  await env.DB.prepare('INSERT INTO wallets (token, credits, created_at) VALUES (?, 0, ?)')
+    .bind(t, Date.now()).run();
+  return t;
+}
+
+/* ---------- trial: 1 free credit per IP, enforced server-side ---------- */
+async function handleTrial(req, env) {
+  const ip = clientIp(req);
+  const seen = await env.DB.prepare('SELECT used FROM trials WHERE ip = ?').bind(ip).first();
+  if (seen?.used) return json({ error: 'Trial already used' }, 403);
+  const token = makeToken();
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare('INSERT OR REPLACE INTO trials (ip, used, created_at) VALUES (?, 1, ?)').bind(ip, now),
+    env.DB.prepare('INSERT INTO wallets (token, credits, created_at) VALUES (?, ?, ?)').bind(token, TRIAL_CREDITS, now),
+  ]);
+  return json({ token, credits: TRIAL_CREDITS });
+}
+
+/* ---------- redeem: burn single-use code, top up wallet ---------- */
+async function handleRedeem(req, env) {
+  const { code, token } = await req.json().catch(() => ({}));
+  const clean = String(code || '').trim().toUpperCase();
+  if (!clean) return json({ error: 'Missing code' }, 400);
+  const row = await env.DB.prepare('SELECT code, credits, redeemed FROM codes WHERE code = ?').bind(clean).first();
+  if (!row) return json({ error: 'Unknown code.' }, 404);
+  if (row.redeemed) return json({ error: 'This code was already redeemed.' }, 410);
+  const wallet = await getOrCreateWallet(env, token);
+  const now = Date.now();
+  await env.DB.batch([
+    env.DB.prepare('UPDATE codes SET redeemed = 1, redeemed_at = ? WHERE code = ? AND redeemed = 0').bind(now, clean),
+    env.DB.prepare('UPDATE wallets SET credits = credits + ? WHERE token = ?').bind(row.credits, wallet),
+  ]);
+  const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(wallet).first();
+  return json({ token: wallet, credits: w.credits });
+}
+
+async function handleBalance(req, env) {
+  const token = new URL(req.url).searchParams.get('token') || '';
+  const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(token).first();
+  return json({ credits: w ? w.credits : 0 });
 }
 
 /* ---------- PayPal ---------- */
@@ -74,7 +135,6 @@ async function handleCreateOrder(req, env) {
 async function handleCapture(req, env) {
   const { orderId } = await req.json().catch(() => ({}));
   if (!orderId) return json({ error: 'Missing orderId' }, 400);
-  // Idempotency: already captured -> return existing code
   const existing = await env.DB.prepare('SELECT code FROM orders WHERE order_id = ? AND status = ?')
     .bind(orderId, 'captured').first();
   if (existing?.code) return json({ code: existing.code, credits: PACKS.coffee.credits });
@@ -84,33 +144,19 @@ async function handleCapture(req, env) {
     method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
   const cap = await res.json();
+  // Verified server-side with PayPal: only COMPLETED payments mint codes.
   if (!res.ok || cap.status !== 'COMPLETED') return json({ error: 'Payment not completed' }, 402);
 
   const code = makeCode();
   const now = Date.now();
   await env.DB.batch([
-    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)')
-      .bind(code, PACKS.coffee.credits, now),
-    env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?')
-      .bind('captured', code, orderId),
+    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, PACKS.coffee.credits, now),
+    env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?').bind('captured', code, orderId),
   ]);
   return json({ code, credits: PACKS.coffee.credits });
 }
 
-/* ---------- redeem ---------- */
-async function handleRedeem(req, env) {
-  const { code } = await req.json().catch(() => ({}));
-  const clean = String(code || '').trim().toUpperCase();
-  if (!clean) return json({ error: 'Missing code' }, 400);
-  const row = await env.DB.prepare('SELECT code, credits, redeemed FROM codes WHERE code = ?').bind(clean).first();
-  if (!row) return json({ error: 'Unknown code.' }, 404);
-  if (row.redeemed) return json({ error: 'This code was already redeemed.' }, 410);
-  await env.DB.prepare('UPDATE codes SET redeemed = 1, redeemed_at = ? WHERE code = ?')
-    .bind(Date.now(), clean).run();
-  return json({ credits: row.credits });
-}
-
-/* ---------- extend via Replicate ---------- */
+/* ---------- extend via Replicate (credit-gated) ---------- */
 async function replicatePrediction(env, input) {
   const create = await fetch('https://api.replicate.com/v1/predictions', {
     method: 'POST',
@@ -121,22 +167,30 @@ async function replicatePrediction(env, input) {
   let pred = await create.json();
   const deadline = Date.now() + 120000;
   while (pred.status !== 'succeeded' && pred.status !== 'failed' && pred.status !== 'canceled') {
-    if (Date.now() > deadline) throw new Error('AI timed out — no credit was used');
+    if (Date.now() > deadline) throw new Error('AI timed out');
     await new Promise(r => setTimeout(r, 2500));
     const poll = await fetch(`https://api.replicate.com/v1/predictions/${pred.id}`, {
       headers: { 'Authorization': `Token ${env.REPLICATE_API_TOKEN}` },
     });
     pred = await poll.json();
   }
-  if (pred.status !== 'succeeded') throw new Error('AI generation failed — no credit was used. ' + (pred.error || ''));
+  if (pred.status !== 'succeeded') throw new Error('AI generation failed. ' + (pred.error || ''));
   const out = Array.isArray(pred.output) ? pred.output[0] : pred.output;
   return typeof out === 'string' ? out : out.url();
 }
 
 async function handleExtend(req, env) {
   if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
-  const { image, outpaint, prompt } = await req.json().catch(() => ({}));
+  const { token, image, outpaint, prompt } = await req.json().catch(() => ({}));
   if (!image || !outpaint) return json({ error: 'Missing image or outpaint params' }, 400);
+
+  // THE GATE: atomic decrement. No valid token with credits -> 402, $0 spent.
+  // curl without a token, or with an empty wallet, cannot reach the GPU.
+  const debit = await env.DB.prepare(
+    'UPDATE wallets SET credits = credits - 1 WHERE token = ? AND credits > 0'
+  ).bind(String(token || '')).run();
+  if (!debit.meta.changes) return json({ error: 'No credits — buy more to continue.' }, 402);
+
   const input = {
     image,
     prompt: (prompt || '').slice(0, 200) || 'seamless photographic extension of the image, matching lighting, style and perspective',
@@ -151,9 +205,12 @@ async function handleExtend(req, env) {
   try {
     const url = await replicatePrediction(env, input);
     await env.DB.prepare('INSERT INTO usage_log (created_at, credits_spent) VALUES (?, 1)').bind(Date.now()).run().catch(() => {});
-    return json({ image_url: url });
+    const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(String(token)).first();
+    return json({ image_url: url, credits: w ? w.credits : 0 });
   } catch (e) {
-    return json({ error: e.message }, 502);
+    // Refund: the GPU never delivered, so the credit goes back.
+    await env.DB.prepare('UPDATE wallets SET credits = credits + 1 WHERE token = ?').bind(String(token)).run().catch(() => {});
+    return json({ error: e.message + ' — no credit was used.' }, 502);
   }
 }
 
@@ -163,7 +220,9 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const url = new URL(req.url);
     try {
+      if (url.pathname === '/api/trial' && req.method === 'POST') return handleTrial(req, env);
       if (url.pathname === '/api/redeem' && req.method === 'POST') return handleRedeem(req, env);
+      if (url.pathname === '/api/balance' && req.method === 'GET') return handleBalance(req, env);
       if (url.pathname === '/api/paypal/create-order' && req.method === 'POST') return handleCreateOrder(req, env);
       if (url.pathname === '/api/paypal/capture' && req.method === 'POST') return handleCapture(req, env);
       if (url.pathname === '/api/extend' && req.method === 'POST') return handleExtend(req, env);
