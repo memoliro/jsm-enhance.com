@@ -18,8 +18,11 @@ without memoli — all three require his own accounts.
   Apps & Credentials → create an app (name it "JSM Extend") → copy the
   **Client ID** and **Secret** (live mode, not sandbox).
 - These become worker secrets `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`.
-- Pricing is fixed in `worker.js`: `PACKS.coffee = $5.00 → 50 credits`.
-  (PayPal takes ~$0.30 + 2.9% ≈ $0.45, leaving ~$4.55 per coffee.)
+- Pricing is fixed in `worker.js` `PACKS`: $5.00 → 50 credits, $10.00 → 100,
+  $15.00 → 150. The worker derives credits from the amount the payment
+  provider reports (PayPal capture / Stripe `amount_total`), never from the
+  client, so a tampered pack id can't mint wrong credits.
+  (PayPal takes ~$0.30 + 2.9% per transaction.)
 - No webhook configuration needed: the app uses return-URL + capture
   (user approves on PayPal → returns to the app → worker captures the
   order and mints the single-use code).

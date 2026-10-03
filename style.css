@@ -78,3 +78,9 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .code-value{font-family:ui-monospace,monospace;font-size:1.5em;letter-spacing:3px;margin:10px 0;color:var(--primary);font-weight:700}
 .code-box p{margin:8px 0 0}
 .btn-stripe:hover{background:#4e47d6}
+.pack-row{display:flex;gap:8px;margin:12px 0}
+.pack-btn{flex:1;padding:10px 6px;border:2px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:center}
+.pack-btn b{font-size:1.15rem}
+.pack-btn span{font-size:.78rem;color:var(--muted)}
+.pack-btn.active{border-color:var(--primary)}
+.pack-btn.active b{color:var(--primary)}

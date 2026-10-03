@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003f">
+<link rel="stylesheet" href="style.css?v=20261003g">
 </head>
 <body>
 <header class="site-header">
@@ -26,7 +26,7 @@
 <main class="wrap">
   <section class="hero">
     <h1>AI Image Extender</h1>
-    <p class="sub">Upload a photo, pick a new aspect ratio, and AI paints the extended background — no cropping, no stretching. <strong>1 free trial</strong>, then credits via PayPal. No account, no subscription.</p>
+    <p class="sub">Upload a photo, pick a new aspect ratio, and AI paints the extended background — no cropping, no stretching. <strong>1 free trial</strong>, then credits via PayPal or card. No account, no subscription.</p>
   </section>
 
   <div id="demoBanner" class="banner" hidden>🧪 <b>Demo mode</b> — results are simulated with a blurred fill. Connect the AI backend for real outpainting.</div>
@@ -93,7 +93,7 @@
     <details open><summary>What does the AI actually do?</summary>
       <p>It <b>outpaints</b>: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped.</p></details>
     <details><summary>How do credits work?</summary>
-      <p>1 credit = 1 extended image. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal — you'll get a single-use code, paste it in, and the credits land in your secure wallet on our server. No account, no subscription, no card stored anywhere.</p></details>
+      <p>1 credit = 1 extended image. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal or card — <b>$5 → 50 credits</b>, <b>$10 → 100 credits</b>, <b>$15 → 150 credits</b>. You'll get a single-use code, paste it in, and the credits land in your secure wallet on our server. No account, no subscription, no card stored anywhere.</p></details>
     <details><summary>Do my photos get stored?</summary>
       <p>No. Your image is sent to the AI provider for the few seconds of processing, then discarded. Nothing is kept on our servers.</p></details>
     <details><summary>What sizes work best?</summary>
@@ -114,7 +114,8 @@
     <p class="balance">Balance: <b id="modalBalance">0</b> credits</p>
     <div id="buySection">
       <h3>Get more credits</h3>
-      <p class="muted">1 coffee ($5) = <b>50 credits</b>. Pay with PayPal or card — you'll get a single-use code, paste it below.</p>
+      <p class="muted">Pick an amount — pay, get a single-use code, paste it below.</p>
+      <div class="pack-row" id="packRow"></div>
       <button id="paypalBuyBtn" class="btn btn-paypal">🅿 Pay $5 with PayPal</button>
       <button id="stripeBuyBtn" class="btn btn-stripe">💳 Pay $5 with Card</button>
       <p class="muted small" id="payHint"></p>
@@ -130,6 +131,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003f"></script>
+<script src="app.js?v=20261003g"></script>
 </body>
 </html>

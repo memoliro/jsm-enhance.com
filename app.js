@@ -3,8 +3,11 @@
 const CONFIG = {
   API_BASE: '',               // e.g. 'https://jsm-extend-worker.memoli.workers.dev'
   FREE_TRIAL_CREDITS: 1,
-  CREDITS_PER_COFFEE: 50,
-  COFFEE_PRICE_USD: 5,
+  PACKS: [ // $5 default; user can pick $10 / $15 (10 credits per $1)
+    { id: 'coffee5',  usd: 5,  credits: 50 },
+    { id: 'coffee10', usd: 10, credits: 100 },
+    { id: 'coffee15', usd: 15, credits: 150 },
+  ],
   MODEL_MAX_SIDE: 1024,       // working resolution cap (long side)
   MODEL_MAX_EXT: 512,         // max outpaint px per side per call
 };
@@ -215,6 +218,8 @@ const mockBackend = {
     x.drawImage(src, out.left, out.up, out.w, out.h);
     return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
   },
+  _issued() { try { return JSON.parse(localStorage.getItem('jsm-extend-mock-issued') || '{}'); } catch { return {}; } },
+  _saveIssued(m) { try { localStorage.setItem('jsm-extend-mock-issued', JSON.stringify(m)); } catch {} },
   async redeem(code, token) {
     await new Promise(r => setTimeout(r, 400));
     code = code.trim().toUpperCase();
@@ -222,23 +227,32 @@ const mockBackend = {
     let used = [];
     try { used = JSON.parse(localStorage.getItem('jsm-extend-mock-used') || '[]'); } catch {}
     if (used.includes(code)) throw new Error('This code was already redeemed.');
+    // Demo mirrors the server's codes table: each issued code carries its pack's credits.
+    const issued = this._issued();
+    const packCredits = issued[code];
+    if (!packCredits) throw new Error('Unknown code.');
     used.push(code);
     try { localStorage.setItem('jsm-extend-mock-used', JSON.stringify(used)); } catch {}
     const w = this._wallets();
     const t = (token && w[token] !== undefined) ? token : this._tok();
-    w[t] = (w[t] || 0) + CONFIG.CREDITS_PER_COFFEE;
+    w[t] = (w[t] || 0) + packCredits;
     this._saveW(w);
-    return { token: t, credits: w[t] };
+    return { token: t, credits: w[t], added: packCredits };
   },
-  async buyCoffee() {
+  _mockBuy(packId) {
+    const p = CONFIG.PACKS.find(x => x.id === packId) || CONFIG.PACKS[0];
+    const rnd = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+    const code = `MOCK-${rnd()}-${rnd()}`;
+    const issued = this._issued(); issued[code] = p.credits; this._saveIssued(issued);
+    return { code, credits: p.credits };
+  },
+  async buyCoffee(packId) {
     await new Promise(r => setTimeout(r, 1200)); // simulate PayPal
-    const rnd = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-    return { code: `MOCK-${rnd()}-${rnd()}`, credits: CONFIG.CREDITS_PER_COFFEE };
+    return this._mockBuy(packId);
   },
-  async buyStripe() {
+  async buyStripe(packId) {
     await new Promise(r => setTimeout(r, 1200)); // simulate Stripe Checkout
-    const rnd = () => Math.random().toString(36).slice(2, 6).toUpperCase();
-    return { code: `MOCK-${rnd()}-${rnd()}`, credits: CONFIG.CREDITS_PER_COFFEE };
+    return this._mockBuy(packId);
   },
 };
 
@@ -271,20 +285,20 @@ const workerBackend = {
     if (!res.ok) throw new Error(j.error || 'Redeem failed');
     return j;
   },
-  async buyCoffee() {
+  async buyCoffee(packId) {
     const res = await fetch(CONFIG.API_BASE + '/api/paypal/create-order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pack: 'coffee' }),
+      body: JSON.stringify({ pack: packId || 'coffee5' }),
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'Could not start PayPal checkout');
     location.href = j.approval_url; // returns after approval; we capture on load
     return new Promise(() => {});
   },
-  async buyStripe() {
+  async buyStripe(packId) {
     const res = await fetch(CONFIG.API_BASE + '/api/stripe/create-checkout', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pack: 'coffee' }),
+      body: JSON.stringify({ pack: packId || 'coffee5' }),
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'Could not start card checkout');
@@ -335,14 +349,35 @@ $('againBtn').onclick = () => { $('resultWrap').hidden = true; updateExtendUI();
 /* ---------- buy + redeem ---------- */
 $('payHint').textContent = DEMO
   ? 'Demo mode: the PayPal and card buttons simulate a payment and issue a test code.'
-  : `Secure checkout via PayPal or card. ${CONFIG.CREDITS_PER_COFFEE} credits per coffee.`;
+  : `Secure checkout via PayPal or card. $5 → 50 credits, $10 → 100, $15 → 150.`;
+
+/* ---------- pack selector ($5 default, $10 / $15 optional) ---------- */
+let selectedPack = CONFIG.PACKS[0];
+function renderPacks() {
+  const row = $('packRow'); if (!row) return;
+  row.innerHTML = '';
+  CONFIG.PACKS.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pack-btn' + (p.id === selectedPack.id ? ' active' : '');
+    const amt = document.createElement('b'); amt.textContent = '$' + p.usd;
+    const cr = document.createElement('span'); cr.textContent = p.credits + ' credits';
+    b.append(amt, cr);
+    b.onclick = () => { selectedPack = p; renderPacks(); updateBuyLabels(); };
+    row.appendChild(b);
+  });
+}
+function updateBuyLabels() {
+  $('paypalBuyBtn').textContent = `🅿 Pay $${selectedPack.usd} with PayPal`;
+  $('stripeBuyBtn').textContent = `💳 Pay $${selectedPack.usd} with Card`;
+}
 
 async function startPurchase(kind) {
   const btn = $(kind === 'stripe' ? 'stripeBuyBtn' : 'paypalBuyBtn');
   btn.disabled = true;
   $('payHint').textContent = kind === 'stripe' ? 'Opening secure card checkout…' : 'Opening PayPal…';
   try {
-    const r = await (kind === 'stripe' ? backend.buyStripe() : backend.buyCoffee());
+    const r = await (kind === 'stripe' ? backend.buyStripe(selectedPack.id) : backend.buyCoffee(selectedPack.id));
     if (r && r.code) {
       // Hand the code to the user (no auto-redeem): they may screenshot it
       // and redeem later — it stays valid even if the browser is cleared.
@@ -432,4 +467,6 @@ async function doRedeem(code, auto) {
 
 /* ---------- init ---------- */
 ensureWallet();
+renderPacks();
+updateBuyLabels();
 $('demoBanner').hidden = !DEMO;

@@ -18,7 +18,16 @@
  */
 
 const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804'; // fermatresearch/sdxl-outpainting-lora — verify current before prod
-const PACKS = { coffee: { usd: '5.00', credits: 50, label: 'JSM Extend — 50 credits' } };
+/* Tiered pricing. Credits are ALWAYS derived from the amount the payment
+   provider reports (PayPal capture amount / Stripe amount_total) — never from
+   the client — so a tampered pack id can't mint wrong credits. */
+const PACKS = {
+  coffee5:  { usd: '5.00',  cents: 500,  credits: 50,  label: 'JSM Extend — 50 credits' },
+  coffee10: { usd: '10.00', cents: 1000, credits: 100, label: 'JSM Extend — 100 credits' },
+  coffee15: { usd: '15.00', cents: 1500, credits: 150, label: 'JSM Extend — 150 credits' },
+};
+const packByUsd = usd => Object.values(PACKS).find(p => p.usd === usd);
+const packByCents = c => Object.values(PACKS).find(p => p.cents === c);
 const TRIAL_CREDITS = 1;
 
 const cors = {
@@ -107,8 +116,7 @@ async function paypalToken(env) {
 
 async function handleCreateOrder(req, env) {
   const { pack } = await req.json().catch(() => ({}));
-  const p = PACKS[pack || 'coffee'];
-  if (!p) return json({ error: 'Unknown pack' }, 400);
+  const p = PACKS[pack] || PACKS.coffee5;
   const { token, base } = await paypalToken(env);
   const res = await fetch(`${base}/v2/checkout/orders`, {
     method: 'POST',
@@ -135,25 +143,29 @@ async function handleCreateOrder(req, env) {
 async function handleCapture(req, env) {
   const { orderId } = await req.json().catch(() => ({}));
   if (!orderId) return json({ error: 'Missing orderId' }, 400);
-  const existing = await env.DB.prepare('SELECT code FROM orders WHERE order_id = ? AND status = ?')
-    .bind(orderId, 'captured').first();
-  if (existing?.code) return json({ code: existing.code, credits: PACKS.coffee.credits });
+  const existing = await env.DB.prepare(
+    'SELECT o.code, c.credits FROM orders o JOIN codes c ON c.code = o.code WHERE o.order_id = ? AND o.status = ?'
+  ).bind(orderId, 'captured').first();
+  if (existing?.code) return json({ code: existing.code, credits: existing.credits });
 
   const { token, base } = await paypalToken(env);
   const res = await fetch(`${base}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
     method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
   const cap = await res.json();
-  // Verified server-side with PayPal: only COMPLETED payments mint codes.
-  if (!res.ok || cap.status !== 'COMPLETED') return json({ error: 'Payment not completed' }, 402);
+  // Verified server-side with PayPal: only COMPLETED payments mint codes, and
+  // the credit amount comes from PayPal's reported capture amount, not the client.
+  const amt = cap.purchase_units?.[0]?.payments?.captures?.[0]?.amount?.value;
+  const p = packByUsd(amt);
+  if (!res.ok || cap.status !== 'COMPLETED' || !p) return json({ error: 'Payment not completed' }, 402);
 
   const code = makeCode();
   const now = Date.now();
   await env.DB.batch([
-    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, PACKS.coffee.credits, now),
+    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, p.credits, now),
     env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?').bind('captured', code, orderId),
   ]);
-  return json({ code, credits: PACKS.coffee.credits });
+  return json({ code, credits: p.credits });
 }
 
 /* ---------- Stripe (card payments) ----------
@@ -162,12 +174,14 @@ async function handleCapture(req, env) {
    single-use code. No webhooks needed. Secret key stays in worker secrets. */
 async function handleStripeCreate(req, env) {
   if (!env.STRIPE_SECRET_KEY) return json({ error: 'Card payments not configured yet.' }, 503);
+  const { pack } = await req.json().catch(() => ({}));
+  const p = PACKS[pack] || PACKS.coffee5;
   const appUrl = env.APP_URL || 'https://jsm-extend.example.com/';
   const params = new URLSearchParams({
     'payment_method_types[]': 'card',
     'line_items[0][price_data][currency]': 'usd',
-    'line_items[0][price_data][unit_amount]': '500',
-    'line_items[0][price_data][product_data][name]': 'JSM Extend — 50 credits',
+    'line_items[0][price_data][unit_amount]': String(p.cents),
+    'line_items[0][price_data][product_data][name]': p.label,
     'line_items[0][quantity]': '1',
     mode: 'payment',
     success_url: appUrl + '?stripe_session={CHECKOUT_SESSION_ID}',
@@ -190,24 +204,27 @@ async function handleStripeVerify(req, env) {
   const { sessionId } = await req.json().catch(() => ({}));
   if (!sessionId) return json({ error: 'Missing sessionId' }, 400);
   const key = 'stripe:' + sessionId;
-  const existing = await env.DB.prepare('SELECT code FROM orders WHERE order_id = ? AND status = ?')
-    .bind(key, 'captured').first();
-  if (existing?.code) return json({ code: existing.code, credits: PACKS.coffee.credits });
+  const existing = await env.DB.prepare(
+    'SELECT o.code, c.credits FROM orders o JOIN codes c ON c.code = o.code WHERE o.order_id = ? AND o.status = ?'
+  ).bind(key, 'captured').first();
+  if (existing?.code) return json({ code: existing.code, credits: existing.credits });
 
-  // Verified server-side with Stripe: only PAID sessions mint codes.
+  // Verified server-side with Stripe: only PAID sessions mint codes, and the
+  // credit amount comes from Stripe's reported amount_total, not the client.
   const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
     headers: { 'Authorization': 'Bearer ' + env.STRIPE_SECRET_KEY },
   });
   const s = await res.json();
-  if (!res.ok || s.payment_status !== 'paid') return json({ error: 'Payment not completed' }, 402);
+  const p = packByCents(s.amount_total);
+  if (!res.ok || s.payment_status !== 'paid' || !p) return json({ error: 'Payment not completed' }, 402);
 
   const code = makeCode();
   const now = Date.now();
   await env.DB.batch([
-    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, PACKS.coffee.credits, now),
+    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, p.credits, now),
     env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?').bind('captured', code, key),
   ]);
-  return json({ code, credits: PACKS.coffee.credits });
+  return json({ code, credits: p.credits });
 }
 
 /* ---------- extend via Replicate (credit-gated) ---------- */
