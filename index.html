@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004c">
+<link rel="stylesheet" href="style.css?v=20261004d">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -71,6 +71,11 @@
           <canvas id="shPreviewCanvas" hidden></canvas>
           <canvas id="textCanvas" class="clickable-canvas" title="Open text editor" hidden></canvas>
         </div>
+        <div class="ws-preview-actions">
+          <button id="replaceImgBtn" class="btn btn-secondary">Replace image</button>
+          <button id="showOrigBtn" class="btn btn-secondary">Show original</button>
+          <button id="showPlanBtn" class="btn btn-primary">Show planned</button>
+        </div>
         <div class="sh-infos">
           <div class="sh-info-row"><span class="muted">Original</span><b id="wsOrig">–</b></div>
           <div class="sh-info-row"><span class="muted" id="wsNewLabel">New size</span><b id="wsNew">–</b></div>
@@ -99,7 +104,8 @@
           </div>
           <h3 class="ctl-h">Custom dimensions</h3>
           <div class="custom-ratio">
-            <label><input type="number" id="customW" min="16" max="4096" placeholder="W"> × <input type="number" id="customH" min="16" max="4096" placeholder="H"> <span class="muted small">px</span></label>
+            <label class="dim-field"><span>Width</span><input type="number" id="customW" min="16" max="4096" placeholder="1920"></label>
+            <label class="dim-field"><span>Height</span><input type="number" id="customH" min="16" max="4096" placeholder="1080"></label>
             <button id="customApply" class="btn btn-secondary">Apply</button>
           </div>
           <p class="muted small err-msg" id="customMsg"></p>
@@ -364,6 +370,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004c"></script>
+<script src="app.js?v=20261004d"></script>
 </body>
 </html>

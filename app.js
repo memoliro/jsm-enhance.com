@@ -279,7 +279,31 @@ $('customApply').onclick = () => {
   const msg = $('customMsg'); msg.textContent = ''; msg.classList.remove('err');
 }));
 
+/* Preview mode: 'planned' (default) shows the tool's output preview,
+   'original' shows just the uploaded photo — jsm-image style toggle. */
+let previewMode = 'planned';
+function drawOriginalPreview(c, maxW) {
+  const s = Math.min(1, maxW / Math.max(imgW, imgH));
+  c.width = Math.max(1, Math.round(imgW * s));
+  c.height = Math.max(1, Math.round(imgH * s));
+  c.getContext('2d').drawImage(imgEl, 0, 0, c.width, c.height);
+}
+function refreshPreview() {
+  if (activeTool === 'extend') drawPreview();
+  else if (activeTool === 'sharpen') drawSharpenPreview();
+  else drawTextPreview();
+}
+function setPreviewMode(m) {
+  previewMode = m;
+  const orig = m === 'original';
+  $('showOrigBtn').classList.toggle('btn-primary', orig);
+  $('showOrigBtn').classList.toggle('btn-secondary', !orig);
+  $('showPlanBtn').classList.toggle('btn-primary', !orig);
+  $('showPlanBtn').classList.toggle('btn-secondary', orig);
+  refreshPreview();
+}
 function drawPreview() {
+  if (previewMode === 'original') { drawOriginalPreview($('previewCanvas'), 1200); return; }
   const C = currentCanvas();
   const c = $('previewCanvas');
   const maxW = 1200, s = Math.min(1, maxW / C.tw);
@@ -301,6 +325,9 @@ function updateSizeInfo(C) {
   C = C || currentCanvas();
   $('wsOrig').textContent = `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px`;
   $('wsNew').textContent = `${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px`;
+  /* Custom fields mirror the current target, jsm-image style (never clobber typing). */
+  if (document.activeElement !== $('customW')) $('customW').value = C.tw;
+  if (document.activeElement !== $('customH')) $('customH').value = C.th;
   const extPx = C.tw * C.th - C.ow * C.oh;
   $('previewInfo').textContent = C.none
     ? 'No expansion needed — pick a different size to extend.'
@@ -579,6 +606,10 @@ function selectTool(t) {
   else { drawPreview(); updateExtendUI(); }
 }
 document.querySelectorAll('.ws-tab').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
+/* interactive preview controls (jsm-image style) */
+$('replaceImgBtn').onclick = () => $('fileInput').click();
+$('showOrigBtn').onclick = () => setPreviewMode('original');
+$('showPlanBtn').onclick = () => setPreviewMode('planned');
 /* dropdown open/close */
 $('ratioDDBtn').onclick = e => { e.stopPropagation(); toggleRatioMenu(); };
 document.addEventListener('click', e => { if (!$('ratioDD').contains(e.target)) closeRatioMenu(); });
@@ -618,8 +649,9 @@ function drawSharpenPreview() {
     return;
   }
   const { w, h } = sharpenInputDims();
-  const ow = w * shScale, oh = h * shScale;
   const c = $('shPreviewCanvas');
+  if (previewMode === 'original') { drawOriginalPreview(c, 640); return; }
+  const ow = w * shScale, oh = h * shScale;
   const s = Math.min(1, 640 / Math.max(ow, oh));
   c.width = Math.max(1, Math.round(ow * s));
   c.height = Math.max(1, Math.round(oh * s));
@@ -961,7 +993,7 @@ function composeDownload() {
 /* Small card preview. */
 function drawTextPreview() {
   if (!imgEl) return null;
-  const src = composeDownload();
+  const src = previewMode === 'original' ? baseComposition() : composeDownload();
   const c = $('textCanvas');
   const s = Math.min(1, 900 / Math.max(src.width, src.height));
   c.width = Math.max(1, Math.round(src.width * s));
