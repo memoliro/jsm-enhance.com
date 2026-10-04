@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004b">
+<link rel="stylesheet" href="style.css?v=20261004c">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -69,6 +69,7 @@
         <div class="ws-preview">
           <canvas id="previewCanvas"></canvas>
           <canvas id="shPreviewCanvas" hidden></canvas>
+          <canvas id="textCanvas" class="clickable-canvas" title="Open text editor" hidden></canvas>
         </div>
         <div class="sh-infos">
           <div class="sh-info-row"><span class="muted">Original</span><b id="wsOrig">–</b></div>
@@ -82,6 +83,7 @@
         <div class="ws-tabs" role="tablist" aria-label="AI tools">
           <button class="ws-tab active" data-tool="extend" role="tab" aria-selected="true">🖼 Extend</button>
           <button class="ws-tab" data-tool="sharpen" role="tab" aria-selected="false">✨ Sharpen</button>
+          <button class="ws-tab" data-tool="text" role="tab" aria-selected="false">✏ Text <span class="tab-free">Free</span></button>
         </div>
         <div id="wsExtendTab" role="tabpanel">
           <h3 class="ctl-h" style="margin-top:0">Aspect ratio</h3>
@@ -131,6 +133,11 @@
             <p>Reconstructing detail…</p>
           </div>
         </div>
+        <div id="wsTextTab" role="tabpanel" hidden>
+          <p class="muted" id="layerCount" style="margin:0 0 12px"></p>
+          <button id="openEditor" class="btn btn-primary btn-block">⛶ Open text editor</button>
+          <button id="textDownload" class="btn btn-secondary btn-block">⬇ Download with text</button>
+        </div>
       </div>
     </div>
     <div class="card" id="resultWrap" hidden>
@@ -157,21 +164,6 @@
       <div class="result-actions">
         <a id="shDownloadBtn" class="btn btn-primary" download="jsm-sharpen.png">⬇ Download PNG</a>
         <button id="shAgainBtn" class="btn btn-secondary">↻ Sharpen again <span class="cost">1 🪙</span></button>
-      </div>
-    </div>
-  </section>
-  <!-- STEP 4 -->
-  <section class="card" id="stepText" hidden>
-    <h2><span class="step">4</span> Add text <span class="muted small" style="font-weight:400">optional</span></h2>
-    <p class="muted small" style="margin:-6px 0 12px">Add titles to your image — every line is its own layer with its own font, size, color, position and rotation. Text alone is free, no credit needed.</p>
-    <div class="size-layout">
-      <div class="size-preview">
-        <canvas id="textCanvas" class="clickable-canvas" title="Open text editor"></canvas>
-      </div>
-      <div class="size-controls">
-        <p class="muted" id="layerCount" style="margin:0 0 10px"></p>
-        <button id="openEditor" class="btn btn-primary" style="width:100%;justify-content:center">⛶ Open text editor</button>
-        <button id="textDownload" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px">⬇ Download with text</button>
       </div>
     </div>
   </section>
@@ -372,6 +364,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004b"></script>
+<script src="app.js?v=20261004c"></script>
 </body>
 </html>

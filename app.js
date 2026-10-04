@@ -150,7 +150,6 @@ function setUploadedImage(im) {
   imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
   lastAi = null; lastFinal = null; lastClean = null; // never carry an old AI result into a new upload
   $('workspace').hidden = false;
-  $('stepText').hidden = false;
   buildRatioMenu();
   buildPresetGrid();
   selectRatio(RATIOS[0]);
@@ -550,14 +549,16 @@ $('addTextBtn').onclick = () => { drawTextPreview(); openEditor(); }; // editor 
 /* ---------- tool tabs: extend vs sharpen (inside the controls card) ---------- */
 let activeTool = 'extend';
 function syncWsInfo() {
-  const ext = activeTool === 'extend';
+  const t = activeTool, ext = t === 'extend';
   $('wsNewLabel').textContent = ext ? 'New size' : 'Output';
-  $('wsCost').textContent = ext ? '1 credit per extension' : '1 credit per photo';
-  $('wsNote').innerHTML = ext
-    ? 'The AI paints only the new areas — your original stays pixel-sharp.'
-    : 'AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.';
+  $('wsCost').textContent = ext ? '1 credit per extension' : t === 'sharpen' ? '1 credit per photo' : 'Free';
+  $('wsNote').innerHTML =
+    ext ? 'The AI paints only the new areas — your original stays pixel-sharp.'
+    : t === 'sharpen' ? 'AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.'
+    : 'Every line is its own layer — font, size, color, position, rotation. Text alone is free, no credit needed.';
   // extend: drawPreview()->updateSizeInfo() refreshes wsOrig/wsNew + previewInfo right after this
-  if (!ext) $('previewInfo').textContent = 'Dashed frame shows exactly what you will receive.';
+  if (t === 'sharpen') $('previewInfo').textContent = 'Dashed frame shows exactly what you will receive.';
+  else if (t === 'text') $('previewInfo').textContent = 'Click the preview or Open text editor to edit.';
 }
 function selectTool(t) {
   activeTool = t;
@@ -568,10 +569,13 @@ function selectTool(t) {
   });
   $('wsExtendTab').hidden = t !== 'extend';
   $('wsSharpenTab').hidden = t !== 'sharpen';
+  $('wsTextTab').hidden = t !== 'text';
   $('previewCanvas').hidden = t !== 'extend';
   $('shPreviewCanvas').hidden = t !== 'sharpen';
+  $('textCanvas').hidden = t !== 'text';
   syncWsInfo();
   if (t === 'sharpen') updateSharpenUI();
+  else if (t === 'text') updateTextUI();
   else { drawPreview(); updateExtendUI(); }
 }
 document.querySelectorAll('.ws-tab').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
@@ -956,7 +960,7 @@ function composeDownload() {
 }
 /* Small card preview. */
 function drawTextPreview() {
-  if (!imgEl) return;
+  if (!imgEl) return null;
   const src = composeDownload();
   const c = $('textCanvas');
   const s = Math.min(1, 900 / Math.max(src.width, src.height));
@@ -967,6 +971,14 @@ function drawTextPreview() {
   $('layerCount').textContent = n
     ? `${n} text layer${n > 1 ? 's' : ''} — open the editor to edit.`
     : 'No text yet — open the editor to add some.';
+  return src;
+}
+/* Text tab: refresh preview + info rows (output = text composition size). */
+function updateTextUI() {
+  const src = drawTextPreview();
+  if (!src) return;
+  $('wsOrig').textContent = `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px`;
+  $('wsNew').textContent = `${src.width.toLocaleString()} × ${src.height.toLocaleString()} px`;
 }
 /* Re-burn the current layers into the last AI result (after edits post-extend). */
 async function refreshFinal() {
