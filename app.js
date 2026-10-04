@@ -1087,6 +1087,7 @@ const FONTS = [
   { name: 'Dancing Script', cat: 'Script' }, { name: 'Caveat', cat: 'Script' },
   { name: 'Pinyon Script', cat: 'Script' },
   { name: 'Bodoni Moda', cat: 'Serif' },
+   { name: 'Gulzar', cat: 'Arabic' },
   { name: 'Fredoka', cat: 'Rounded' }, { name: 'Baloo 2', cat: 'Rounded' },
 ];
 /* Each text line is an independent layer: own font, size, color, position,
