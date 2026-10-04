@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004n">
+<link rel="stylesheet" href="style.css?v=20261004o">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -137,7 +137,7 @@
           <div class="sh-row">
             <span class="muted">Upscale</span>
             <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
-              <button data-scale="1">1×</button><button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
+              <button data-scale="1" class="active">1×</button><button data-scale="2">2×</button><button data-scale="4">4×</button>
             </div>
           </div>
           <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
@@ -423,6 +423,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004n"></script>
+<script src="app.js?v=20261004o"></script>
 </body>
 </html>

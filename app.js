@@ -707,7 +707,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRatioMe
 
 /* ---------- sharpen flow ---------- */
 const SH_MAX_PIXELS = 2000000; // real-esrgan OOMs above 2096704 total px on this GPU; keep a safety margin
-let shScale = 2;
+let shScale = 1;
 let sharpenSrc = null; // { img, w, h } — an extend result; overrides the upload as the sharpen source when set
 function shImg() { return (sharpenSrc && sharpenSrc.img) || imgEl; }
 function shIW() { return (sharpenSrc && sharpenSrc.w) || imgW; }
