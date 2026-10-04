@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004f">
+<link rel="stylesheet" href="style.css?v=20261004g">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -75,6 +75,7 @@
           <button id="replaceImgBtn" class="btn btn-secondary">Replace image</button>
           <button id="showOrigBtn" class="btn btn-secondary">Show original</button>
           <button id="showPlanBtn" class="btn btn-primary">Show planned</button>
+          <button id="sharpenResultBtn" class="btn btn-primary" hidden>✨ Sharpen this result <span class="cost">1 🪙</span></button>
         </div>
         <div class="sh-infos">
           <div class="sh-info-row"><span class="muted">Original</span><b id="wsOrig">–</b></div>
@@ -113,6 +114,12 @@
           <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
             <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
           </label>
+          <div class="chain-row">
+            <label class="sh-check"><input type="checkbox" id="chainSharpen"> ✨ Also enhance the result <span class="muted small">+1 credit</span></label>
+            <div class="seg" id="chainScaleSeg" role="group" aria-label="Chained enhance scale" hidden>
+              <button data-scale="1">1×</button><button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
+            </div>
+          </div>
           <p id="costLine" class="muted"></p>
           <button id="extendBtn" class="btn btn-primary btn-block">✨ Extend image <span class="cost">1 🪙</span></button>
           <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it&apos;s a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a>, or you may want to <a href="#" data-goto-tool="sharpen">Sharpen</a>.</p>
@@ -379,6 +386,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004f"></script>
+<script src="app.js?v=20261004g"></script>
 </body>
 </html>

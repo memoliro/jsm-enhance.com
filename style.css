@@ -177,6 +177,8 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .seg button.active{background:var(--primary);color:#fff}
 .sh-check{display:flex;align-items:center;gap:8px;cursor:pointer}
 .sh-check input{accent-color:var(--primary);width:18px;height:18px}
+.chain-row{display:grid;gap:8px;margin:14px 0 4px}
+.chain-row .seg{justify-self:start}
 /* before/after compare */
 .ba-wrap{position:relative;overflow:hidden;border-radius:10px;border:1px solid var(--border);touch-action:none;user-select:none;cursor:ew-resize;--pos:50%}
 .ba-wrap img{display:block;width:100%;height:auto;pointer-events:none}

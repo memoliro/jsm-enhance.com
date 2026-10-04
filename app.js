@@ -149,6 +149,8 @@ fi.onchange = () => { if (fi.files[0]) loadFile(fi.files[0]); };
 function setUploadedImage(im) {
   imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
   lastAi = null; lastFinal = null; lastClean = null; // never carry an old AI result into a new upload
+  sharpenSrc = null; // back to the upload as the sharpen source
+  $('sharpenResultBtn').hidden = true;
   $('workspace').hidden = false;
   buildRatioMenu();
   buildPresetGrid();
@@ -289,11 +291,12 @@ function applyCustomLive() {
 /* Preview mode: 'planned' (default) shows the tool's output preview,
    'original' shows just the uploaded photo — jsm-image style toggle. */
 let previewMode = 'planned';
-function drawOriginalPreview(c, maxW) {
-  const s = Math.min(1, maxW / Math.max(imgW, imgH));
-  c.width = Math.max(1, Math.round(imgW * s));
-  c.height = Math.max(1, Math.round(imgH * s));
-  c.getContext('2d').drawImage(imgEl, 0, 0, c.width, c.height);
+function drawOriginalPreview(c, maxW, srcImg, srcW, srcH) {
+  const im = srcImg || imgEl, iw = srcW || imgW, ih = srcH || imgH;
+  const s = Math.min(1, maxW / Math.max(iw, ih));
+  c.width = Math.max(1, Math.round(iw * s));
+  c.height = Math.max(1, Math.round(ih * s));
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
 }
 function refreshPreview() {
   if (activeTool === 'extend') drawPreview();
@@ -349,12 +352,15 @@ function updateExtendUI() {
   if (!imgEl) { btn.disabled = true; return; }
   const C = currentCanvas();
   const needsExt = !C.none;
+  const chained = $('chainSharpen').checked;
+  const total = needsExt ? (chained ? 2 : 1) : 0;
   btn.disabled = !needsExt;
   btn.style.display = needsExt ? '' : 'none';
+  btn.querySelector('.cost').textContent = `${total} 🪙`;
   note.hidden = needsExt;
   /* Pay only when the AI invents new pixels. Pure resizes go free to JSM Image. */
   $('costLine').innerHTML = needsExt
-    ? `This will use 1 credit and deliver ${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px. You have ${balance}. <span class="muted free-alt">Just need a crop instead of AI painting? <a href="https://jsm-image.com" target="_blank" rel="noopener">Free at JSM Image</a></span>`
+    ? `This will use ${total} credit${total > 1 ? 's' : ''}${chained ? ' (extend + enhance)' : ''} and deliver ${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px. You have ${balance}. <span class="muted free-alt">Just need a crop instead of AI painting? <a href="https://jsm-image.com" target="_blank" rel="noopener">Free at JSM Image</a></span>`
     : '';
 }
 
@@ -543,7 +549,8 @@ function workingImageDataUrl(out) {
 /* ---------- extend flow ---------- */
 $('extendBtn').onclick = async () => {
   if (!imgEl || currentCanvas().none) return;
-  if (balance < 1) { openModal(); return; }
+  const need = $('chainSharpen').checked ? 2 : 1; // extend + optional chained enhance
+  if (balance < need) { openModal(); return; }
   const out = workingLayout();
   const prompt = $('promptInput').value.trim();
   $('progress').hidden = false;
@@ -562,7 +569,12 @@ $('extendBtn').onclick = async () => {
     $('resultWrap').hidden = false;
     $('demoBanner').hidden = !r.mock;
     drawTextPreview(); // step 4 must show the extended image, not the original
-    $('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('sharpenResultBtn').hidden = false; // manual "enhance this result" path on the left card
+    if ($('chainSharpen').checked && lastClean) {
+      await runChainedSharpen(); // auto-chain: enhance now, then land on the Sharpen tab
+    } else {
+      $('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   } catch (e) {
     if (e.code === 402) { setBalance(0); openModal(); return; } // server says empty
     /* Never claim "no credit was used": the debit happens server-side before
@@ -632,19 +644,23 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRatioMe
 /* ---------- sharpen flow ---------- */
 const SH_MAX_INPUT = 1500; // longest side sent to the model
 let shScale = 2;
+let sharpenSrc = null; // { img, w, h } — an extend result; overrides the upload as the sharpen source when set
+function shImg() { return (sharpenSrc && sharpenSrc.img) || imgEl; }
+function shIW() { return (sharpenSrc && sharpenSrc.w) || imgW; }
+function shIH() { return (sharpenSrc && sharpenSrc.h) || imgH; }
 function sharpenInputDims() {
-  const s = Math.min(1, SH_MAX_INPUT / Math.max(imgW, imgH));
-  return { w: Math.max(1, Math.round(imgW * s)), h: Math.max(1, Math.round(imgH * s)) };
+  const s = Math.min(1, SH_MAX_INPUT / Math.max(shIW(), shIH()));
+  return { w: Math.max(1, Math.round(shIW() * s)), h: Math.max(1, Math.round(shIH() * s)) };
 }
 function sharpenInputDataUrl() {
   const { w, h } = sharpenInputDims();
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
-  c.getContext('2d').drawImage(imgEl, 0, 0, w, h);
+  c.getContext('2d').drawImage(shImg(), 0, 0, w, h);
   return c.toDataURL('image/jpeg', 0.92);
 }
 function updateSharpenUI() {
-  if (!imgEl) return;
+  if (!shImg()) return;
   const { w, h } = sharpenInputDims();
   const ow = w * shScale, oh = h * shScale;
   $('wsOrig').textContent = `${w.toLocaleString()} × ${h.toLocaleString()} px`;
@@ -656,15 +672,15 @@ function updateSharpenUI() {
 /* Sharpen preview: the uploaded photo centered inside the output frame,
    new-pixel area tinted — the same visual language as the Extend preview. */
 function drawSharpenPreview() {
-  if (!imgEl) return;
   // drawImage silently no-ops on an incomplete image — never paint blank.
-  if (!imgEl.complete || !imgEl.naturalWidth) {
-    imgEl.addEventListener('load', drawSharpenPreview, { once: true });
+  const simg = shImg();
+  if (!simg || !simg.complete || !simg.naturalWidth) {
+    if (simg) simg.addEventListener('load', drawSharpenPreview, { once: true });
     return;
   }
   const { w, h } = sharpenInputDims();
   const c = $('shPreviewCanvas');
-  if (previewMode === 'original') { drawOriginalPreview(c, 640); return; }
+  if (previewMode === 'original') { drawOriginalPreview(c, 640, simg, shIW(), shIH()); return; }
   const ow = w * shScale, oh = h * shScale;
   const s = Math.min(1, 640 / Math.max(ow, oh));
   c.width = Math.max(1, Math.round(ow * s));
@@ -673,7 +689,7 @@ function drawSharpenPreview() {
   x.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
   x.globalAlpha = 0.12; x.fillRect(0, 0, c.width, c.height); x.globalAlpha = 1;
   const iw = w * s, ih = h * s;
-  x.drawImage(imgEl, (c.width - iw) / 2, (c.height - ih) / 2, iw, ih);
+  x.drawImage(simg, (c.width - iw) / 2, (c.height - ih) / 2, iw, ih);
   x.strokeStyle = '#2563eb'; x.setLineDash([6, 4]); x.lineWidth = 2;
   x.strokeRect(1, 1, c.width - 2, c.height - 2); x.setLineDash([]);
 }
@@ -682,8 +698,36 @@ document.querySelectorAll('#shScaleSeg button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#shScaleSeg button').forEach(x => x.classList.toggle('active', x === b));
   updateSharpenUI();
 });
+/* ---------- extend → enhance chain ---------- */
+let chainScale = 2;
+document.querySelectorAll('#chainScaleSeg button').forEach(b => b.onclick = () => {
+  chainScale = parseInt(b.dataset.scale, 10);
+  document.querySelectorAll('#chainScaleSeg button').forEach(x => x.classList.toggle('active', x === b));
+  updateExtendUI();
+});
+$('chainSharpen').onchange = () => {
+  $('chainScaleSeg').hidden = !$('chainSharpen').checked;
+  updateExtendUI();
+};
+// Sharpen the just-finished extend result (text-free) with the chained scale,
+// then land on the Sharpen tab showing the final result.
+async function runChainedSharpen() {
+  if (!lastClean) return;
+  if (balance < 1) { openModal(); return; } // extend already took its credit
+  sharpenSrc = { img: lastClean, w: lastClean.naturalWidth, h: lastClean.naturalHeight };
+  shScale = chainScale;
+  document.querySelectorAll('#shScaleSeg button').forEach(x => x.classList.toggle('active', +x.dataset.scale === chainScale));
+  await runSharpen();
+  selectTool('sharpen');
+}
+// Manual path: load the extend result into the Sharpen tab (user picks scale, then runs).
+$('sharpenResultBtn').onclick = () => {
+  if (!lastClean) return;
+  sharpenSrc = { img: lastClean, w: lastClean.naturalWidth, h: lastClean.naturalHeight };
+  selectTool('sharpen');
+};
 async function runSharpen() {
-  if (!imgEl) return;
+  if (!shImg()) return;
   if (balance < 1) { openModal(); return; } // server re-checks anyway
   const face = $('shFace').checked;
   $('shProgress').hidden = false;
@@ -709,7 +753,7 @@ async function runSharpen() {
     // before image at the same aspect; CSS scales both to the wrap
     const bc = document.createElement('canvas');
     bc.width = w; bc.height = h;
-    bc.getContext('2d').drawImage(imgEl, 0, 0, w, h);
+    bc.getContext('2d').drawImage(shImg(), 0, 0, w, h);
     $('baBeforeImg').src = bc.toDataURL('image/jpeg', 0.9);
     $('baAfter').src = outUrl;
     $('baWrap').style.setProperty('--pos', '50%');
