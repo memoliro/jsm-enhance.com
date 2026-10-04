@@ -24,6 +24,7 @@
 // (legacy) fermatresearch/sdxl-outpainting-lora — replaced by bria/expand-image, Oct 2026
 const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804';
 const SHARPEN_VERSION = 'b3ef194191d13140337468c916c2c5b96dd0cb06dffc032a022a31807f6a5ea8'; // nightmareai/real-esrgan — restoration + upscale
+const UNBLUR_VERSION = 'e116b6df8437d9c562f9de2a86cea6fd76a96705e502f091457926bbe989436c'; // megvii-research/nafnet — deblurring (pinned; the /v1/models/.../predictions shortcut only serves official models)
 /* Tiered pricing. Credits are ALWAYS derived from the amount the payment
    provider reports (PayPal capture amount / Stripe amount_total) — never from
    the client — so a tampered pack id can't mint wrong credits. */
@@ -253,7 +254,7 @@ async function handleStripeVerify(req, env) {
 /* ---------- extend via Replicate (credit-gated) ---------- */
 // target: { version } for a pinned model version, or { model } for an official
 // model endpoint (always the latest official release, no hash to pin).
-async function replicateRun(env, target, input, timeoutMs) {
+async function replicateRun(env, target, input, timeoutMs, pollMs) {
   const endpoint = target.model
     ? `https://api.replicate.com/v1/models/${target.model}/predictions`
     : 'https://api.replicate.com/v1/predictions';
@@ -271,9 +272,10 @@ async function replicateRun(env, target, input, timeoutMs) {
   }
   let pred = await create.json();
   const deadline = Date.now() + (timeoutMs || 120000);
+  const interval = pollMs || 2500;
   while (pred.status !== 'succeeded' && pred.status !== 'failed' && pred.status !== 'canceled') {
     if (Date.now() > deadline) throw new Error('AI timed out');
-    await new Promise(r => setTimeout(r, 2500));
+    await new Promise(r => setTimeout(r, interval));
     const poll = await fetch(`https://api.replicate.com/v1/predictions/${pred.id}`, {
       headers: { 'Authorization': `Token ${env.REPLICATE_API_TOKEN}` },
     });
@@ -372,10 +374,13 @@ async function handleSharpen(req, env) {
 }
 
 /* ---------- unblur via Replicate (credit-gated) ----------
-   NAFNet (megvii-research/nafnet): faithful deblurring for motion/defocus blur.
-   Official model endpoint = always the latest version, no pinned hash needed.
-   NAFNet cold starts can approach ~2 min, so this gets a longer poll deadline
-   (wall-clock wait on fetch, not CPU — the refund path still protects credits). */
+   NAFNet (megvii-research/nafnet, pinned version): faithful deblurring for
+   motion/defocus blur. NAFNet cold starts can approach ~2 min, so this gets a
+   longer poll deadline (wall-clock wait on fetch, not CPU — the refund path
+   still protects credits).
+   NOTE: the model's own field is "task_type" and its deblur value is spelled
+   "Image Debluring" — the missing "r" is the model's typo, keep it. This
+   pinned version offers a single general deblur task (no GoPro/REDS variants). */
 async function handleUnblur(req, env) {
   if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
   const { token, image } = await req.json().catch(() => ({}));
@@ -386,9 +391,11 @@ async function handleUnblur(req, env) {
   try {
     const url = await replicateRun(
       env,
-      { model: 'megvii-research/nafnet' },
-      { image, task: 'Image Deblurring (GoPro)' },
-      300000
+      { version: env.REPLICATE_UNBLUR_VERSION || UNBLUR_VERSION },
+      { image, task_type: 'Image Debluring' },
+      300000, // 5-min deadline for NAFNet cold starts
+      10000 // poll every 10s: Cloudflare free plan allows 50 subrequests per
+            // invocation, and a 2.5s poll would burn ~44 on a cold start alone
     );
     const image_b64 = await fetchImageAsDataUrl(url);
     await logUsage(env);
@@ -418,7 +425,9 @@ export default {
       if (url.pathname === '/api/health') return json({ ok: true, live: !!env.REPLICATE_API_TOKEN });
       return json({ error: 'Not found' }, 404);
     } catch (e) {
-      return json({ error: 'Server error' }, 500);
+      // Surface the real exception message (our own errors carry no secrets).
+      // This is what diagnosed the Stripe and Replicate wiring issues.
+      return json({ error: 'Server error: ' + (e && e.message ? e.message : String(e)) }, 500);
     }
   },
 };

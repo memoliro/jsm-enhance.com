@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004m">
+<link rel="stylesheet" href="style.css?v=20261004n">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -29,6 +29,14 @@
 <header class="site-header">
   <div class="site-header-inner">
     <a class="logo" href="./"><span class="logo-icon">JSM</span><span class="logo-text">Extend</span></a>
+    <nav class="header-nav" aria-label="AI tools">
+      <div class="ws-tabs" role="tablist" aria-label="AI tools">
+        <button class="ws-tab active" data-tool="extend" role="tab" aria-selected="true">🖼 Extend</button>
+        <button class="ws-tab" data-tool="sharpen" role="tab" aria-selected="false">✨ Sharpen</button>
+        <button class="ws-tab" data-tool="unblur" role="tab" aria-selected="false">🔍 Unblur</button>
+        <button class="ws-tab" data-tool="text" role="tab" aria-selected="false">✏ Text <span class="tab-free">Free</span></button>
+      </div>
+    </nav>
     <div class="header-right">
       <button id="creditsPill" class="credits-pill" title="Your credits">🪙 <span id="creditsCount">–</span></button>
       <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">🌙 <span>Dark</span></button>
@@ -86,12 +94,6 @@
         </div>
       </div>
       <div class="card ws-controls-card">
-        <div class="ws-tabs" role="tablist" aria-label="AI tools">
-          <button class="ws-tab active" data-tool="extend" role="tab" aria-selected="true">🖼 Extend</button>
-          <button class="ws-tab" data-tool="sharpen" role="tab" aria-selected="false">✨ Sharpen</button>
-          <button class="ws-tab" data-tool="unblur" role="tab" aria-selected="false">🔍 Unblur</button>
-          <button class="ws-tab" data-tool="text" role="tab" aria-selected="false">✏ Text <span class="tab-free">Free</span></button>
-        </div>
         <div id="wsExtendTab" role="tabpanel">
           <h3 class="ctl-h" style="margin-top:0">Aspect ratio</h3>
           <div class="dd" id="ratioDD">
@@ -421,6 +423,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004m"></script>
+<script src="app.js?v=20261004n"></script>
 </body>
 </html>
