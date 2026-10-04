@@ -303,12 +303,19 @@ async function handleExtend(req, env) {
 
   const input = {
     image,
-    prompt: (prompt || '').slice(0, 200) || 'seamless photographic extension of the image, matching lighting, style and perspective',
-    negative_prompt: 'visible seam, watermark, text, distorted, blurry border',
+    prompt: (prompt || '').slice(0, 200) || 'seamless photographic extension of the image, continue the scene naturally in every direction, matching lighting, color grading, style, perspective and depth of field, invisible boundaries',
+    negative_prompt: 'visible seam, hard edge, border, frame, watermark, text, logo, distorted anatomy, deformed face, duplicated features, blurry, low quality, oversized objects',
     outpaint_left: Math.min(512, outpaint.left | 0),
     outpaint_right: Math.min(512, outpaint.right | 0),
     outpaint_up: Math.min(512, outpaint.up | 0),
     outpaint_down: Math.min(512, outpaint.down | 0),
+    // Quality tuning (verified against the a542ccf3 input schema):
+    // - condition_scale 0.35 (default 0.15): stronger ControlNet guidance from the
+    //   original image -> cleaner boundaries, fewer visible seams. Free (no extra runtime).
+    // - guidance_scale 8 (default 7.5): slightly stronger prompt adherence.
+    // NOTE: this model exposes no num_inference_steps knob.
+    condition_scale: 0.35,
+    guidance_scale: 8,
     apply_watermark: false,
     num_outputs: 1,
   };

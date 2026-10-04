@@ -533,7 +533,27 @@ async function finishResult(aiSrc) {
   c.width = C.tw; c.height = C.th;
   const x = c.getContext('2d');
   x.drawImage(ai, 0, 0, C.tw, C.th);
-  x.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
+  /* Feather the original over the AI result: a hard paste leaves a visible line
+     wherever the AI's edge tone differs even slightly, so blend a few px at the
+     boundary with a blurred mask. The original stays pixel-sharp everywhere else. */
+  const f = Math.max(2, Math.round(Math.min(C.ow, C.oh) * 0.004));
+  const fg = document.createElement('canvas');
+  fg.width = C.tw; fg.height = C.th;
+  const fx = fg.getContext('2d');
+  fx.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
+  const mask = document.createElement('canvas');
+  mask.width = C.tw; mask.height = C.th;
+  const mx = mask.getContext('2d');
+  mx.fillStyle = '#fff';
+  mx.fillRect(C.ox, C.oy, C.ow, C.oh);
+  const soft = document.createElement('canvas');
+  soft.width = C.tw; soft.height = C.th;
+  const sx = soft.getContext('2d');
+  try { sx.filter = `blur(${f}px)`; } catch (e) { /* old browser: falls back to a hard edge */ }
+  sx.drawImage(mask, 0, 0);
+  fx.globalCompositeOperation = 'destination-in';
+  fx.drawImage(soft, 0, 0);
+  x.drawImage(fg, 0, 0);
   lastClean = await loadImage(c.toDataURL('image/png'));
   drawLayers(x, C.tw, C.th); // burn the text layers into the final image
   const url = c.toDataURL('image/png');
