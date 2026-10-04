@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004e">
+<link rel="stylesheet" href="style.css?v=20261004f">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -115,7 +115,7 @@
           </label>
           <p id="costLine" class="muted"></p>
           <button id="extendBtn" class="btn btn-primary btn-block">✨ Extend image <span class="cost">1 🪙</span></button>
-          <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it&apos;s a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a></p>
+          <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it&apos;s a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a>, or you may want to <a href="#" data-goto-tool="sharpen">Sharpen</a>.</p>
           <p id="extendErr" class="err-msg" hidden></p>
           <div id="progress" class="progress" hidden>
             <div class="spinner"></div>
@@ -259,6 +259,10 @@
       <span>🏠 Real estate photos</span>
       <span>🛒 Product shots</span>
       <span>🎨 Thumbnails &amp; banners</span>
+      <span>🕰️ Refreshing old memories</span>
+      <span>📸 Hobbyist photographers</span>
+      <span>🖼️ Enlarging old photos for print</span>
+      <span>👪 Family photo restoration</span>
     </div>
   </section>
 
@@ -290,8 +294,14 @@
     <h2>Frequently asked questions</h2>
     <details open><summary>What does the AI actually do?</summary>
       <p>It <b>outpaints</b>: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped.</p></details>
+    <details><summary>What does the Sharpen tool do?</summary>
+      <p>It <b>reconstructs</b> pixelated, blurry or soft photos with AI. <b>1×</b> cleans up at the original size, <b>2×</b> / <b>4×</b> enlarge while rebuilding detail, and <b>Face enhance</b> gives portraits extra care. One honest note: detail is <b>re-imagined, not recovered</b> — the AI invents plausible sharpness, it can't bring back what was never captured. 1 credit per photo, from the same wallet as Extend.</p></details>
     <details><summary>How do credits work?</summary>
-      <p>1 credit = 1 extended image. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal or card — <b>$5 → 50 credits</b>, <b>$10 → 100 credits</b>, <b>$15 → 150 credits</b>. You'll get a single-use code, paste it in, and the credits land in your secure wallet on our server. No account, no subscription, no card stored anywhere.</p></details>
+      <p>1 credit = 1 AI job — one Extend or one Sharpen. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal or card — <b>$5 → 50 credits</b>, <b>$10 → 100 credits</b>, <b>$15 → 150 credits</b>. You'll get a single-use code, paste it in, and the credits land in your secure wallet on our server. No account, no subscription, no card stored anywhere.</p></details>
+    <details><summary>How do I keep my purchase code safe?</summary>
+      <p><b>Take a picture or screenshot of your code</b> the moment you receive it, and keep it until all its credits are spent. The code is single-use and lives on our server — it works even if you clear your browser, and you can redeem it on any device.</p></details>
+    <details><summary>What if I switch phones or browsers?</summary>
+      <p>If you <b>haven't redeemed your code yet</b>, just redeem it on the new device — that's the easiest move. But once a code is redeemed, the remaining balance lives in that browser's wallet (there's no account to transfer it with), so redeem on the device you plan to keep using.</p></details>
     <details><summary>Do my photos get stored?</summary>
       <p>No. Your image is sent to the AI provider for the few seconds of processing, then discarded. Nothing is kept on our servers.</p></details>
     <details><summary>What sizes work best?</summary>
@@ -303,9 +313,9 @@
     <details><summary>What if the AI fails to generate?</summary>
       <p>You keep your credit. Failed generations are refunded automatically — you only ever pay for images you actually receive.</p></details>
     <details><summary>Why don't I need an account?</summary>
-      <p>Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it. Fewer accounts, fewer passwords, less of your data floating around.</p></details>
+      <p>Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it. Fewer accounts, fewer passwords, less of your data floating around. Just remember the wallet lives in that browser — keep your code screenshot until the credits are spent.</p></details>
     <details><summary>Can I add text to my image?</summary>
-      <p>Yes — step 4 is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text alone is free; it only uses a credit when you also run the AI extension.</p></details>
+      <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend or Sharpen.</p></details>
 </section>
   <section class="card support-card">
     <h2>Support the site</h2>
@@ -369,6 +379,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004e"></script>
+<script src="app.js?v=20261004f"></script>
 </body>
 </html>

@@ -336,8 +336,8 @@ function updateSizeInfo(C) {
   if (document.activeElement !== $('customW')) $('customW').value = C.tw;
   if (document.activeElement !== $('customH')) $('customH').value = C.th;
   const extPx = C.tw * C.th - C.ow * C.oh;
-  $('previewInfo').textContent = C.none
-    ? 'No expansion needed — pick a different size to extend.'
+  $('previewInfo').innerHTML = C.none
+    ? 'No expansion needed — pick a different size to extend, or you may want to <a href="#" data-goto-tool="sharpen">Sharpen</a>.'
     : `AI will paint ${extPx.toLocaleString()} px² of new background (blue tint).`;
   $('sizeNote').textContent = C.capped
     ? '⚠️ Capped at a safe maximum (4096 px side / 12 MP) to protect quality and processing.'
@@ -613,6 +613,13 @@ function selectTool(t) {
   else { drawPreview(); updateExtendUI(); }
 }
 document.querySelectorAll('.ws-tab').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
+/* Cross-links that jump to a workspace tab (e.g. "…or you may want to Sharpen"). */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-goto-tool]');
+  if (!t || $('workspace').hidden) return;
+  e.preventDefault();
+  selectTool(t.dataset.gotoTool);
+});
 /* interactive preview controls (jsm-image style) */
 $('replaceImgBtn').onclick = () => $('fileInput').click();
 $('showOrigBtn').onclick = () => setPreviewMode('original');
