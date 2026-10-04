@@ -541,29 +541,21 @@ function updateSharpenUI() {
   if (!imgEl) return;
   const { w, h } = sharpenInputDims();
   const ow = w * shScale, oh = h * shScale;
-  $('shSizeLine').textContent = shScale === 1
-    ? `${w.toLocaleString()} × ${h.toLocaleString()} px in → same size out, AI-enhanced`
-    : `${w.toLocaleString()} × ${h.toLocaleString()} px in → ${ow.toLocaleString()} × ${oh.toLocaleString()} px out` +
-      (w !== imgW ? ' (input capped for speed)' : '');
-  /* proportional frames: input box fixed at 44px wide, output scaled from it */
-  const unit = 44 / w;
-  const finBox = $('shFinBox');
-  finBox.style.width = '44px';
-  finBox.style.height = Math.max(20, Math.round(h * unit)) + 'px';
-  let bw = ow * unit, bh = oh * unit;
-  const cap = 176 / Math.max(bw, bh, 1);
-  if (cap < 1) { bw *= cap; bh *= cap; }
-  const foutBox = $('shFoutBox');
-  foutBox.style.width = Math.max(20, Math.round(bw)) + 'px';
-  foutBox.style.height = Math.max(20, Math.round(bh)) + 'px';
-  $('shFinLabel').textContent = `${w}×${h}`;
-  $('shFoutLabel').textContent = `${ow}×${oh}`;
+  $('shInfoOrig').textContent = `${w.toLocaleString()} × ${h.toLocaleString()} px`;
+  $('shInfoOut').textContent = shScale === 1
+    ? `${ow.toLocaleString()} × ${oh.toLocaleString()} px — AI-enhanced, same size`
+    : `${ow.toLocaleString()} × ${oh.toLocaleString()} px`;
   drawSharpenPreview();
 }
 /* Sharpen preview: the uploaded photo centered inside the output frame,
    new-pixel area tinted — the same visual language as the Extend preview. */
 function drawSharpenPreview() {
   if (!imgEl) return;
+  // drawImage silently no-ops on an incomplete image — never paint blank.
+  if (!imgEl.complete || !imgEl.naturalWidth) {
+    imgEl.addEventListener('load', drawSharpenPreview, { once: true });
+    return;
+  }
   const { w, h } = sharpenInputDims();
   const ow = w * shScale, oh = h * shScale;
   const c = $('shPreviewCanvas');

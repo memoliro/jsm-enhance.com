@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003y">
+<link rel="stylesheet" href="style.css?v=20261003z">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -141,11 +141,19 @@
   </div><!-- /extendPanel -->
 
   <!-- SHARPEN PANEL -->
-  <section class="card" id="sharpenPanel" hidden>
-    <h2><span class="step">2</span> Sharpen it</h2>
-    <p class="muted">AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best. <strong>1 credit</strong> per photo.</p>
-    <div class="sh-preview"><canvas id="shPreviewCanvas"></canvas></div>
-    <div class="sh-options">
+  <section id="sharpenPanel" hidden>
+  <div class="sh-layout">
+    <div class="card sh-preview-card">
+      <div class="sh-preview"><canvas id="shPreviewCanvas"></canvas></div>
+      <div class="sh-infos">
+        <div class="sh-info-row"><span class="muted">Original</span><b id="shInfoOrig">–</b></div>
+        <div class="sh-info-row"><span class="muted">Output</span><b id="shInfoOut">–</b></div>
+        <div class="sh-info-row"><span class="muted">Cost</span><b>1 credit per photo</b></div>
+        <p class="muted small sh-note">AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.</p>
+      </div>
+    </div>
+    <div class="card sh-settings-card">
+      <h3>Sharpen settings</h3>
       <div class="sh-row">
         <span class="muted">Upscale</span>
         <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
@@ -153,22 +161,15 @@
         </div>
       </div>
       <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
+      <button id="sharpenBtn" class="btn btn-primary btn-block">✨ Sharpen photo <span class="cost">1 🪙</span></button>
+      <p id="shErr" class="err-msg" hidden></p>
+      <div id="shProgress" class="progress" hidden>
+        <div class="spinner"></div>
+        <p>Reconstructing detail…</p>
+      </div>
     </div>
-    <p class="muted small" id="shSizeLine"></p>
-    <div class="sh-frames" aria-hidden="true">
-      <div class="sh-fcol"><div class="sh-fbox" id="shFinBox"></div><span class="sh-flabel" id="shFinLabel"></span></div>
-      <span class="sh-farrow">→</span>
-      <div class="sh-fcol"><div class="sh-fbox sh-fout" id="shFoutBox"></div><span class="sh-flabel" id="shFoutLabel"></span></div>
-    </div>
-    <div class="extend-row">
-      <button id="sharpenBtn" class="btn btn-primary">✨ Sharpen photo <span class="cost">1 🪙</span></button>
-    </div>
-    <p id="shErr" class="err-msg" hidden></p>
-    <div id="shProgress" class="progress" hidden>
-      <div class="spinner"></div>
-      <p>Reconstructing detail…</p>
-    </div>
-    <div id="shResultWrap" hidden>
+  </div>
+  <div class="card" id="shResultWrap" hidden>
       <h3>Result</h3>
       <p class="muted small">Drag the handle to compare before / after</p>
       <div class="ba-wrap" id="baWrap" style="--pos:50%">
@@ -380,6 +381,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003y"></script>
+<script src="app.js?v=20261003z"></script>
 </body>
 </html>

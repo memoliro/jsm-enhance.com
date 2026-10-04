@@ -183,7 +183,6 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .tool-tab{flex:1;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:1rem;font-weight:700;cursor:pointer}
 .tool-tab.active{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
 /* sharpen options */
-.sh-options{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center;margin:14px 0 6px}
 .sh-row{display:flex;align-items:center;gap:10px}
 .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .seg button{border:0;background:var(--card);color:var(--text);padding:8px 18px;font-weight:700;cursor:pointer}
@@ -200,10 +199,14 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .ba-tag-l{left:8px}
 .ba-tag-r{right:8px}
 .sh-preview{text-align:center;margin:12px 0}
-.sh-preview canvas{max-width:100%;border-radius:10px;border:1px solid var(--border)}
-.sh-frames{display:flex;align-items:center;gap:14px;margin:10px 0}
-.sh-fcol{display:flex;flex-direction:column;align-items:center;gap:4px}
-.sh-fbox{border:2px solid var(--border);border-radius:8px;background:var(--card);min-width:20px;min-height:20px}
-.sh-fout{border-style:dashed;border-color:var(--primary)}
-.sh-flabel{font-size:.75rem;color:var(--muted);white-space:nowrap}
-.sh-farrow{color:var(--muted);font-size:1.2rem}
+.sh-preview canvas{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--border)}
+.sh-layout{display:grid;grid-template-columns:minmax(0,7fr) minmax(300px,5fr);gap:20px;align-items:start;margin:16px 0}
+.sh-layout>.card{margin:0}
+.sh-infos{display:grid;gap:8px;margin-top:12px}
+.sh-info-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--bg);border-radius:8px;padding:8px 12px;font-size:.9rem}
+.sh-note{margin:4px 2px 0}
+.sh-settings-card h3{margin:0 0 14px;font-size:1.05rem}
+.sh-settings-card .sh-row{margin-bottom:14px}
+.sh-settings-card .sh-check{margin-bottom:4px}
+.btn-block{width:100%;margin-top:14px}
+@media (max-width:860px){.sh-layout{grid-template-columns:1fr}}
