@@ -301,6 +301,7 @@ function drawOriginalPreview(c, maxW, srcImg, srcW, srcH) {
 function refreshPreview() {
   if (activeTool === 'extend') drawPreview();
   else if (activeTool === 'sharpen') drawSharpenPreview();
+  else if (activeTool === 'unblur') drawUnblurPreview();
   else drawTextPreview();
 }
 function setPreviewMode(m) {
@@ -400,6 +401,20 @@ const mockBackend = {
     x.drawImage(src, out.left, out.up, out.w, out.h);
     return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
   },
+  async unblur(imageDataUrl, token) {
+    const w = this._wallets();
+    if (!w[token] || w[token] < 1) { const e = new Error('No credits — buy more to continue.'); e.code = 402; throw e; }
+    w[token]--; this._saveW(w); // atomic debit before work
+    await new Promise(r => setTimeout(r, 2200)); // simulate AI latency
+    // Simulated result: mild contrast lift — clearly a mock
+    const src = await loadImage(imageDataUrl);
+    const c = document.createElement('canvas');
+    c.width = src.naturalWidth; c.height = src.naturalHeight;
+    const x = c.getContext('2d');
+    x.filter = 'contrast(1.06) saturate(1.06)';
+    x.drawImage(src, 0, 0);
+    return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
+  },
   async sharpen(imageDataUrl, scale, faceEnhance, token) {
     const w = this._wallets();
     if (!w[token] || w[token] < 1) { const e = new Error('No credits — buy more to continue.'); e.code = 402; throw e; }
@@ -478,6 +493,15 @@ const workerBackend = {
     });
     const j = await res.json();
     if (!res.ok) { const e = new Error(j.error || 'Sharpen failed'); e.code = res.status; throw e; }
+    return j;
+  },
+  async unblur(imageDataUrl, token) {
+    const res = await fetch(CONFIG.API_BASE + '/api/unblur', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, image: imageDataUrl }),
+    });
+    const j = await res.json();
+    if (!res.ok) { const e = new Error(j.error || 'Unblur failed'); e.code = res.status; throw e; }
     return j;
   },
   async redeem(code, token) {
@@ -632,13 +656,16 @@ function syncWsInfo() {
   const t = activeTool, ext = t === 'extend';
   const chained = ext && $('chainSharpen') && $('chainSharpen').checked;
   $('wsNewLabel').textContent = ext ? 'New size' : 'Output';
-  $('wsCost').textContent = chained ? '2 credits per extension + sharpen' : ext ? '1 credit per extension' : t === 'sharpen' ? '1 credit per photo' : 'Free';
+  $('wsCost').textContent = chained ? '2 credits per extension + sharpen'
+    : ext ? '1 credit per extension'
+    : (t === 'sharpen' || t === 'unblur') ? '1 credit per photo' : 'Free';
   $('wsNote').innerHTML =
     ext ? 'The AI paints only the new areas — your original stays pixel-sharp.'
     : t === 'sharpen' ? 'AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.'
+    : t === 'unblur' ? 'True deblurring for shaky or out-of-focus photos — the AI reverses the blur itself. Same size in, same size out.'
     : 'Every line is its own layer — font, size, color, position, rotation. Text alone is free, no credit needed.';
   // extend: drawPreview()->updateSizeInfo() refreshes wsOrig/wsNew + previewInfo right after this
-  if (t === 'sharpen') $('previewInfo').textContent = 'Dashed frame shows exactly what you will receive.';
+  if (t === 'sharpen' || t === 'unblur') $('previewInfo').textContent = 'Dashed frame shows exactly what you will receive.';
   else if (t === 'text') $('previewInfo').textContent = 'Click the preview or Open text editor to edit.';
 }
 function selectTool(t) {
@@ -650,12 +677,14 @@ function selectTool(t) {
   });
   $('wsExtendTab').hidden = t !== 'extend';
   $('wsSharpenTab').hidden = t !== 'sharpen';
+  $('wsUnblurTab').hidden = t !== 'unblur';
   $('wsTextTab').hidden = t !== 'text';
   $('previewCanvas').hidden = t !== 'extend';
-  $('shPreviewCanvas').hidden = t !== 'sharpen';
+  $('shPreviewCanvas').hidden = t !== 'sharpen' && t !== 'unblur';
   $('textCanvas').hidden = t !== 'text';
   syncWsInfo();
   if (t === 'sharpen') updateSharpenUI();
+  else if (t === 'unblur') updateUnblurUI();
   else if (t === 'text') updateTextUI();
   else { drawPreview(); updateExtendUI(); }
 }
@@ -820,8 +849,80 @@ async function runSharpen() {
 $('sharpenBtn').onclick = runSharpen;
 $('shAgainBtn').onclick = () => { $('sharpenBtn').click(); }; // another run, same settings (1 credit)
 
-/* before/after compare sliders (extend + sharpen) */
-['baWrap', 'baWrapEx'].forEach(wrapId => {
+/* ---------- unblur ---------- */
+const UN_MAX_SIDE = 2048; // NAFNet returns input resolution; cap longest side for speed
+function unblurInput() {
+  const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+  const s = Math.min(1, UN_MAX_SIDE / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+  c.getContext('2d').drawImage(imgEl, 0, 0, c.width, c.height);
+  return { url: c.toDataURL('image/jpeg', 0.92), w: c.width, h: c.height };
+}
+function updateUnblurUI() {
+  if (!imgEl) return;
+  const { w, h } = unblurInput();
+  $('wsOrig').textContent = `${imgEl.naturalWidth.toLocaleString()} × ${imgEl.naturalHeight.toLocaleString()} px`;
+  $('wsNew').textContent = `${w.toLocaleString()} × ${h.toLocaleString()} px — deblurred, same size`;
+  drawUnblurPreview();
+}
+/* Unblur preview: the uploaded photo with the dashed "what you receive" frame,
+   same visual language as the Sharpen preview (reuses its canvas). */
+function drawUnblurPreview() {
+  const simg = imgEl;
+  if (!simg || !simg.complete || !simg.naturalWidth) return;
+  const { w, h } = unblurInput();
+  const c = $('shPreviewCanvas');
+  const s = Math.min(1, 640 / Math.max(w, h));
+  c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+  const x = c.getContext('2d');
+  x.drawImage(simg, 0, 0, c.width, c.height);
+  x.strokeStyle = '#2563eb'; x.setLineDash([6, 4]); x.lineWidth = 2;
+  x.strokeRect(1, 1, c.width - 2, c.height - 2); x.setLineDash([]);
+}
+async function runUnblur() {
+  if (!imgEl) return;
+  if (balance < 1) { openModal(); return; } // server re-checks anyway
+  $('unProgress').hidden = false;
+  $('unResultWrap').hidden = true;
+  $('unErr').hidden = true;
+  $('unblurBtn').disabled = true;
+  try {
+    // The server atomically deducts 1 credit; the returned balance is authoritative.
+    const src = unblurInput();
+    const r = await backend.unblur(src.url, store.token);
+    setBalance(r.credits);
+    const outUrl = r.image_b64 || r.image_url;
+    const outImg = await loadImage(outUrl);
+    // before/after: pixel-aligned — "before" is exactly what was sent to the AI
+    $('baBeforeUn').src = src.url;
+    $('baAfterUn').src = outUrl;
+    $('baWrapUn').style.setProperty('--pos', '50%');
+    $('unDownloadBtn').href = outUrl;
+    $('unDownloadBtn').download = `jsm-unblur-${outImg.naturalWidth}x${outImg.naturalHeight}.png`;
+    $('unResultSize').textContent = `${outImg.naturalWidth.toLocaleString()} × ${outImg.naturalHeight.toLocaleString()} px PNG`;
+    $('unResultWrap').hidden = false;
+    $('demoBanner').hidden = !r.mock;
+    $('unResultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    if (e.code === 402) { setBalance(0); openModal(); return; } // server says empty
+    /* Never claim "no credit was used": the debit happens server-side, so
+       only the server knows the truth. Refresh and report it. */
+    await refreshBalance();
+    const err = $('unErr');
+    err.textContent = 'Unblur failed: ' + (e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
+    err.hidden = false;
+    $('unResultWrap').hidden = true;
+  } finally {
+    $('unProgress').hidden = true;
+    $('unblurBtn').disabled = false;
+  }
+}
+$('unblurBtn').onclick = runUnblur;
+$('unAgainBtn').onclick = () => { $('unblurBtn').click(); }; // another run, same photo (1 credit)
+
+/* before/after compare sliders (extend + sharpen + unblur) */
+['baWrap', 'baWrapEx', 'baWrapUn'].forEach(wrapId => {
   const wrap = $(wrapId);
   let drag = false;
   const setPos = e => {

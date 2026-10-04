@@ -15,6 +15,7 @@
  *   POST /api/extend      {token, image, canvas, orig_size, orig_loc, prompt} -> {image_url, credits}
  *                         (Bria Expand: canvas_size + original placement; $0.04/run)
  *   POST /api/sharpen     {token, image, scale, face_enhance} -> {image_url, credits}
+ *   POST /api/unblur      {token, image} -> {image_url, credits}
  *
  * Bindings: DB (D1). Secrets: REPLICATE_API_TOKEN, PAYPAL_CLIENT_ID,
  * PAYPAL_CLIENT_SECRET. Vars: PAYPAL_BASE, APP_URL.
@@ -252,7 +253,7 @@ async function handleStripeVerify(req, env) {
 /* ---------- extend via Replicate (credit-gated) ---------- */
 // target: { version } for a pinned model version, or { model } for an official
 // model endpoint (always the latest official release, no hash to pin).
-async function replicateRun(env, target, input) {
+async function replicateRun(env, target, input, timeoutMs) {
   const endpoint = target.model
     ? `https://api.replicate.com/v1/models/${target.model}/predictions`
     : 'https://api.replicate.com/v1/predictions';
@@ -262,9 +263,14 @@ async function replicateRun(env, target, input) {
     headers: { 'Authorization': `Token ${env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!create.ok) throw new Error('Replicate rejected the request');
+  if (!create.ok) {
+    // Surface Replicate's real reason (e.g. bad field names) — invaluable when
+    // wiring a new model. The body carries no secrets.
+    const detail = await create.text().catch(() => '');
+    throw new Error('Replicate rejected the request' + (detail ? ': ' + detail.slice(0, 300) : ''));
+  }
   let pred = await create.json();
-  const deadline = Date.now() + 120000;
+  const deadline = Date.now() + (timeoutMs || 120000);
   while (pred.status !== 'succeeded' && pred.status !== 'failed' && pred.status !== 'canceled') {
     if (Date.now() > deadline) throw new Error('AI timed out');
     await new Promise(r => setTimeout(r, 2500));
@@ -365,6 +371,34 @@ async function handleSharpen(req, env) {
   }
 }
 
+/* ---------- unblur via Replicate (credit-gated) ----------
+   NAFNet (megvii-research/nafnet): faithful deblurring for motion/defocus blur.
+   Official model endpoint = always the latest version, no pinned hash needed.
+   NAFNet cold starts can approach ~2 min, so this gets a longer poll deadline
+   (wall-clock wait on fetch, not CPU — the refund path still protects credits). */
+async function handleUnblur(req, env) {
+  if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
+  const { token, image } = await req.json().catch(() => ({}));
+  if (!image) return json({ error: 'Missing image' }, 400);
+
+  if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
+
+  try {
+    const url = await replicateRun(
+      env,
+      { model: 'megvii-research/nafnet' },
+      { image, task: 'Image Deblurring (GoPro)' },
+      300000
+    );
+    const image_b64 = await fetchImageAsDataUrl(url);
+    await logUsage(env);
+    return json({ image_b64, image_url: url, credits: await walletCredits(env, token) });
+  } catch (e) {
+    await refundWallet(env, token);
+    return json({ error: e.message + ' — no credit was used.' }, 502);
+  }
+}
+
 /* ---------- router ---------- */
 export default {
   async fetch(req, env) {
@@ -380,6 +414,7 @@ export default {
       if (url.pathname === '/api/stripe/verify' && req.method === 'POST') return handleStripeVerify(req, env);
       if (url.pathname === '/api/extend' && req.method === 'POST') return handleExtend(req, env);
       if (url.pathname === '/api/sharpen' && req.method === 'POST') return handleSharpen(req, env);
+      if (url.pathname === '/api/unblur' && req.method === 'POST') return handleUnblur(req, env);
       if (url.pathname === '/api/health') return json({ ok: true, live: !!env.REPLICATE_API_TOKEN });
       return json({ error: 'Not found' }, 404);
     } catch (e) {

@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004l">
+<link rel="stylesheet" href="style.css?v=20261004m">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -89,6 +89,7 @@
         <div class="ws-tabs" role="tablist" aria-label="AI tools">
           <button class="ws-tab active" data-tool="extend" role="tab" aria-selected="true">🖼 Extend</button>
           <button class="ws-tab" data-tool="sharpen" role="tab" aria-selected="false">✨ Sharpen</button>
+          <button class="ws-tab" data-tool="unblur" role="tab" aria-selected="false">🔍 Unblur</button>
           <button class="ws-tab" data-tool="text" role="tab" aria-selected="false">✏ Text <span class="tab-free">Free</span></button>
         </div>
         <div id="wsExtendTab" role="tabpanel">
@@ -145,6 +146,15 @@
             <p>Reconstructing detail…</p>
           </div>
         </div>
+        <div id="wsUnblurTab" role="tabpanel" hidden>
+          <p class="muted small" style="margin-top:0">True deblurring for shaky or out-of-focus photos — the AI reverses the blur itself instead of just boosting edges. Same size in, same size out.</p>
+          <button id="unblurBtn" class="btn btn-primary btn-block">🔍 Unblur photo <span class="cost">1 🪙</span></button>
+          <p id="unErr" class="err-msg" hidden></p>
+          <div id="unProgress" class="progress" hidden>
+            <div class="spinner"></div>
+            <p>Removing blur…</p>
+          </div>
+        </div>
         <div id="wsTextTab" role="tabpanel" hidden>
           <p class="muted" id="layerCount" style="margin:0 0 12px"></p>
           <button id="openEditor" class="btn btn-primary btn-block">⛶ Open text editor</button>
@@ -183,6 +193,22 @@
       <div class="result-actions">
         <a id="shDownloadBtn" class="btn btn-primary" download="jsm-sharpen.png">⬇ Download PNG</a>
         <button id="shAgainBtn" class="btn btn-secondary">↻ Sharpen again <span class="cost">1 🪙</span></button>
+      </div>
+    </div>
+    <div class="card" id="unResultWrap" hidden>
+      <h3>Unblur Result</h3>
+      <p class="muted small">Drag the handle to compare before / after</p>
+      <div class="ba-wrap" id="baWrapUn" style="--pos:50%">
+        <img id="baAfterUn" alt="Deblurred result">
+        <img id="baBeforeUn" class="ba-top" alt="Original">
+        <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+        <span class="ba-tag ba-tag-l">Before</span>
+        <span class="ba-tag ba-tag-r">After</span>
+      </div>
+      <p class="muted small" id="unResultSize"></p>
+      <div class="result-actions">
+        <a id="unDownloadBtn" class="btn btn-primary" download="jsm-unblur.png">⬇ Download PNG</a>
+        <button id="unAgainBtn" class="btn btn-secondary">↻ Unblur again <span class="cost">1 🪙</span></button>
       </div>
     </div>
   </section>
@@ -310,8 +336,10 @@
       <p>It <b>outpaints</b>: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped.</p></details>
     <details><summary>What does the Sharpen tool do?</summary>
       <p>It <b>reconstructs</b> pixelated, blurry or soft photos with AI. <b>1×</b> cleans up at the original size, <b>2×</b> / <b>4×</b> enlarge while rebuilding detail, and <b>Face enhance</b> gives portraits extra care. One honest note: detail is <b>re-imagined, not recovered</b> — the AI invents plausible sharpness, it can't bring back what was never captured. 1 credit per photo, from the same wallet as Extend.</p></details>
+    <details><summary>What does the Unblur tool do?</summary>
+      <p>It <b>reverses blur</b> — camera shake, missed focus, motion smear — using a dedicated deblurring AI (not just edge sharpening). Same size in, same size out, 1 credit per photo. Honest note: it recovers a lot, but a photo that's <b>extremely</b> blurred has no detail left to recover — the before/after slider on every result shows you exactly what changed.</p></details>
     <details><summary>How do credits work?</summary>
-      <p>1 credit = 1 AI job — one Extend or one Sharpen. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal or card — <b>$5 → 50 credits</b>, <b>$10 → 100 credits</b>, <b>$15 → 150 credits</b>. You'll get a single-use code, paste it in, and the credits land in your secure wallet on our server. No account, no subscription, no card stored anywhere.</p></details>
+      <p>1 credit = 1 AI job — one Extend, one Sharpen or one Unblur. You start with <b>1 free trial credit</b>. When you run out, buy more with PayPal or card — <b>$5 → 50 credits</b>, <b>$10 → 100 credits</b>, <b>$15 → 150 credits</b>. You'll get a single-use code, paste it in, and the credits land in your secure wallet on our server. No account, no subscription, no card stored anywhere.</p></details>
     <details><summary>How do I keep my purchase code safe?</summary>
       <p><b>Take a picture or screenshot of your code</b> the moment you receive it, and keep it until all its credits are spent. The code is single-use and lives on our server — it works even if you clear your browser, and you can redeem it on any device.</p></details>
     <details><summary>What if I switch phones or browsers?</summary>
@@ -329,7 +357,7 @@
     <details><summary>Why don't I need an account?</summary>
       <p>Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it. Fewer accounts, fewer passwords, less of your data floating around. Just remember the wallet lives in that browser — keep your code screenshot until the credits are spent.</p></details>
     <details><summary>Can I add text to my image?</summary>
-      <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend or Sharpen.</p></details>
+      <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend, Sharpen or Unblur.</p></details>
 </section>
   <section class="card support-card">
     <h2>Support the site</h2>
@@ -393,6 +421,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004l"></script>
+<script src="app.js?v=20261004m"></script>
 </body>
 </html>
