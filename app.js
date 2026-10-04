@@ -10,6 +10,8 @@ const CONFIG = {
   ],
   MODEL_MAX_SIDE: 1024,       // working resolution cap (long side)
   MODEL_MAX_EXT: 512,         // max outpaint px per side per call
+  MAX_OUT_SIDE: 4096,         // final output cap: longest side (px)
+  MAX_OUT_PX: 12000000,       // final output cap: total pixels (~12MP, mobile-safe)
 };
 const DEMO = !CONFIG.API_BASE;
 
@@ -63,6 +65,8 @@ modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 let imgEl = null, imgW = 0, imgH = 0;   // original
 let ratio = null;                        // {rw, rh, label}
 let layout = null;                       // computed canvas layout (orig px)
+let sizeMode = 'ratio';                  // 'ratio' (minimal expansion) or 'exact' (preset/custom px)
+let exactW = 0, exactH = 0;              // requested exact canvas (px, pre-clamp)
 
 const RATIOS = [
   { label: 'Original', rw: 0, rh: 0 },
@@ -75,6 +79,19 @@ const RATIOS = [
   { label: '9:16', rw: 9, rh: 16 },
   { label: '2:3', rw: 2, rh: 3 },
 ];
+/* Exact-pixel presets (social sizes, like JSM Image). Selecting one delivers
+   exactly these pixels: the AI paints at working size, then the result is
+   finished crisply at the preset size in the browser. */
+const PRESETS = [
+  { label: 'YouTube', sub: '1920×1080', w: 1920, h: 1080 },
+  { label: 'Shorts / Reels / TikTok', sub: '1080×1920', w: 1080, h: 1920 },
+  { label: 'Instagram', sub: '1080×1080', w: 1080, h: 1080 },
+  { label: 'Profile Photo', sub: '400×400', w: 400, h: 400 },
+  { label: 'FB / LinkedIn', sub: '1200×628', w: 1200, h: 628 },
+  { label: 'Twitter / X', sub: '1200×675', w: 1200, h: 675 },
+  { label: '4K UHD', sub: '3840×2160', w: 3840, h: 2160 },
+  { label: '4K Vertical', sub: '2160×3840', w: 2160, h: 3840 },
+];
 
 function computeLayout(w, h, rw, rh) {
   if (!rw) return { tw: w, th: h, left: 0, right: 0, up: 0, down: 0, none: true };
@@ -84,18 +101,39 @@ function computeLayout(w, h, rw, rh) {
   return { tw, th, left, up, right: tw - w - left, down: th - h - up, none: false };
 }
 
+/* The deliverable canvas in output pixels: ratio mode = minimal expansion of
+   the original; exact mode = preset/custom pixels. Clamped to MAX_OUT_SIDE /
+   MAX_OUT_PX so extreme requests can't blow up the browser tab (or imply a
+   bigger AI job than our fixed working size). The original is fit-inside and
+   centered; margins are what the AI paints. */
+function currentCanvas() {
+  let tw, th;
+  if (sizeMode === 'exact') { tw = exactW; th = exactH; }
+  else { tw = layout.tw; th = layout.th; }
+  let s = Math.min(1, CONFIG.MAX_OUT_SIDE / Math.max(tw, th));
+  if (tw * th * s * s > CONFIG.MAX_OUT_PX) s = Math.sqrt(CONFIG.MAX_OUT_PX / (tw * th));
+  const capped = s < 1;
+  tw = Math.max(1, Math.round(tw * s)); th = Math.max(1, Math.round(th * s));
+  const os = Math.min(tw / imgW, th / imgH);
+  const ow = Math.max(1, Math.round(imgW * os)), oh = Math.max(1, Math.round(imgH * os));
+  const ox = Math.round((tw - ow) / 2), oy = Math.round((th - oh) / 2);
+  const none = ox <= 0 && oy <= 0 && tw - ox - ow <= 0 && th - oy - oh <= 0;
+  return { tw, th, ow, oh, ox, oy, capped, none };
+}
+
 /* Fit everything into model limits; returns working-size layout */
 function workingLayout() {
-  const L = layout;
-  let s = Math.min(1, CONFIG.MODEL_MAX_SIDE / Math.max(imgW, imgH));
-  const maxExt = Math.max(L.left, L.right, L.up, L.down) * s;
+  const C = currentCanvas();
+  let s = Math.min(1, CONFIG.MODEL_MAX_SIDE / Math.max(C.tw, C.th));
+  const m = { left: C.ox, up: C.oy, right: C.tw - C.ox - C.ow, down: C.th - C.oy - C.oh };
+  const maxExt = Math.max(m.left, m.right, m.up, m.down) * s;
   if (maxExt > CONFIG.MODEL_MAX_EXT && maxExt > 0) s *= CONFIG.MODEL_MAX_EXT / maxExt;
   const r = v => Math.max(0, Math.round(v * s));
   return {
     scale: s,
-    w: r(imgW), h: r(imgH),
-    tw: r(L.tw), th: r(L.th),
-    left: r(L.left), right: r(L.right), up: r(L.up), down: r(L.down),
+    w: r(C.ow), h: r(C.oh),
+    tw: r(C.tw), th: r(C.th),
+    left: r(m.left), right: r(m.right), up: r(m.up), down: r(m.down),
   };
 }
 
@@ -118,6 +156,7 @@ function loadFile(f) {
     $('stepRatio').hidden = false;
     $('stepExtend').hidden = false;
     buildRatioGrid();
+    buildPresetGrid();
     selectRatio(RATIOS[0]);
     $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -139,48 +178,84 @@ function buildRatioGrid() {
   });
 }
 function selectRatio(r) {
-  ratio = r;
+  ratio = r; sizeMode = 'ratio';
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.label === r.label));
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   layout = computeLayout(imgW, imgH, r.rw, r.rh);
   drawPreview();
   updateExtendUI();
 }
-$('customApply').onclick = () => {
-  const w = parseInt($('customW').value, 10), h = parseInt($('customH').value, 10);
-  if (!w || !h || w < 1 || h < 1) { alert('Enter a valid width and height.'); return; }
+function buildPresetGrid() {
+  const g = $('presetGrid'); g.innerHTML = '';
+  PRESETS.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'preset-btn';
+    b.dataset.w = p.w; b.dataset.h = p.h;
+    b.innerHTML = `<b></b><span>${p.sub}</span>`;
+    b.querySelector('b').textContent = p.label;
+    b.title = `${p.label} — ${p.sub} px`;
+    b.onclick = () => selectPreset(p);
+    g.appendChild(b);
+  });
+}
+function selectPreset(p) {
+  sizeMode = 'exact'; exactW = p.w; exactH = p.h;
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
-  ratio = { label: `${w}:${h}`, rw: w, rh: h };
-  layout = computeLayout(imgW, imgH, w, h);
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', +b.dataset.w === p.w && +b.dataset.h === p.h));
+  drawPreview();
+  updateExtendUI();
+}
+$('customApply').onclick = () => {
+  let w = parseInt($('customW').value, 10), h = parseInt($('customH').value, 10);
+  if (!w || !h || w < 16 || h < 16) { alert('Enter a width and height of at least 16 px.'); return; }
+  w = Math.min(w, CONFIG.MAX_OUT_SIDE); h = Math.min(h, CONFIG.MAX_OUT_SIDE);
+  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  sizeMode = 'exact'; exactW = w; exactH = h;
   drawPreview(); updateExtendUI();
 };
 
 function drawPreview() {
-  const c = $('previewCanvas'), L = layout;
-  const maxW = 720, s = Math.min(1, maxW / L.tw);
-  c.width = Math.round(L.tw * s); c.height = Math.round(L.th * s);
+  const C = currentCanvas();
+  const c = $('previewCanvas');
+  const maxW = 720, s = Math.min(1, maxW / C.tw);
+  c.width = Math.round(C.tw * s); c.height = Math.round(C.th * s);
   const x = c.getContext('2d');
   x.clearRect(0, 0, c.width, c.height);
   // extension area tint
   x.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
   x.globalAlpha = 0.12; x.fillRect(0, 0, c.width, c.height); x.globalAlpha = 1;
-  // original image centered
-  const dw = imgW * s, dh = imgH * s, dx = (c.width - dw) / 2, dy = (c.height - dh) / 2;
+  // original image, fit-inside and centered (matches the final result)
+  const dw = C.ow * s, dh = C.oh * s, dx = C.ox * s, dy = C.oy * s;
   x.drawImage(imgEl, dx, dy, dw, dh);
   x.strokeStyle = '#2563eb'; x.setLineDash([6, 4]); x.lineWidth = 2;
   x.strokeRect(dx, dy, dw, dh); x.setLineDash([]);
-  const ext = L.left + L.right + L.up + L.down;
-  $('previewInfo').textContent = L.none
-    ? `${imgW}×${imgH} — no expansion needed. Pick a different ratio to extend.`
-    : `${imgW}×${imgH} → ${L.tw}×${L.th} — AI will paint ${ext.toLocaleString()} px² of new background (blue tint).`;
+  updateSizeInfo(C);
+}
+
+function updateSizeInfo(C) {
+  C = C || currentCanvas();
+  $('origSize').textContent = `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px`;
+  $('newSize').textContent = `${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px`;
+  const extPx = C.tw * C.th - C.ow * C.oh;
+  $('previewInfo').textContent = C.none
+    ? 'No expansion needed — pick a different size to extend.'
+    : `AI will paint ${extPx.toLocaleString()} px² of new background (blue tint).`;
+  $('sizeNote').textContent = C.capped
+    ? '⚠️ Capped at a safe maximum (4096 px side / 12 MP) to protect quality and processing.'
+    : 'AI paints at up to 1024 px, then the result is finished crisply at your chosen size.';
 }
 
 function updateExtendUI() {
   const btn = $('extendBtn');
-  const needsExt = layout && !layout.none;
+  if (!imgEl) { btn.disabled = true; return; }
+  const C = currentCanvas();
+  const needsExt = !C.none;
   btn.disabled = !needsExt;
   $('costLine').textContent = needsExt
-    ? `This will use 1 credit. You have ${balance}.`
-    : 'This ratio matches your image — no extension needed.';
+    ? `This will use 1 credit and deliver ${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px. You have ${balance}.`
+    : 'This size matches your image — no extension needed.';
 }
 
 /* ---------- backends ---------- */
@@ -311,6 +386,19 @@ const backend = DEMO ? mockBackend : workerBackend;
 function loadImage(src) {
   return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
 }
+/* Finish the AI result at the chosen output size: the AI's working-size
+   image supplies the painted edges, and the full-resolution original is
+   drawn crisply on top, centered — exactly what the preview showed. */
+async function finishResult(aiSrc) {
+  const C = currentCanvas();
+  const ai = await loadImage(aiSrc);
+  const c = document.createElement('canvas');
+  c.width = C.tw; c.height = C.th;
+  const x = c.getContext('2d');
+  x.drawImage(ai, 0, 0, C.tw, C.th);
+  x.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
+  return { url: c.toDataURL('image/png'), w: C.tw, h: C.th };
+}
 function workingImageDataUrl(out) {
   const c = document.createElement('canvas');
   c.width = out.w; c.height = out.h;
@@ -320,7 +408,7 @@ function workingImageDataUrl(out) {
 
 /* ---------- extend flow ---------- */
 $('extendBtn').onclick = async () => {
-  if (!layout || layout.none) return;
+  if (!imgEl || currentCanvas().none) return;
   if (balance < 1) { openModal(); return; }
   const out = workingLayout();
   const prompt = $('promptInput').value.trim();
@@ -331,8 +419,11 @@ $('extendBtn').onclick = async () => {
     // The server atomically deducts 1 credit; the returned balance is authoritative.
     const r = await backend.extend(workingImageDataUrl(out), out, prompt, store.token);
     setBalance(r.credits);
-    $('resultImg').src = r.image_b64 || r.image_url;
-    $('downloadBtn').href = r.image_b64 || r.image_url;
+    const fin = await finishResult(r.image_b64 || r.image_url);
+    $('resultImg').src = fin.url;
+    $('downloadBtn').href = fin.url;
+    $('downloadBtn').download = `jsm-extend-${fin.w}x${fin.h}.png`;
+    $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
     $('resultWrap').hidden = false;
     $('demoBanner').hidden = !r.mock;
     $('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });

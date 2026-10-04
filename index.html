@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003i">
+<link rel="stylesheet" href="style.css?v=20261003j">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -62,18 +62,30 @@
   <!-- STEP 2 -->
   <section class="card" id="stepRatio" hidden>
     <h2><span class="step">2</span> Choose the new size</h2>
-    <div class="ratio-grid" id="ratioGrid"></div>
-    <div class="custom-ratio">
-      <label>Custom <input type="number" id="customW" min="1" max="9999" placeholder="W"> : <input type="number" id="customH" min="1" max="9999" placeholder="H"></label>
-      <button id="customApply" class="btn btn-secondary">Apply</button>
+    <div class="size-layout">
+      <div class="size-preview">
+        <canvas id="previewCanvas"></canvas>
+        <p class="muted" id="previewInfo"></p>
+      </div>
+      <div class="size-controls">
+        <div class="size-rows">
+          <div class="size-row"><span class="muted">Original</span><b id="origSize">–</b></div>
+          <div class="size-row"><span class="muted">New size</span><b id="newSize">–</b></div>
+        </div>
+        <h3 class="ctl-h">Aspect ratio</h3>
+        <div class="ratio-grid" id="ratioGrid"></div>
+        <h3 class="ctl-h">Exact size <span class="muted small">presets</span></h3>
+        <div class="preset-grid" id="presetGrid"></div>
+        <div class="custom-ratio">
+          <label>Custom <input type="number" id="customW" min="16" max="4096" placeholder="W"> × <input type="number" id="customH" min="16" max="4096" placeholder="H"> <span class="muted small">px</span></label>
+          <button id="customApply" class="btn btn-secondary">Apply</button>
+        </div>
+        <p class="muted small" id="sizeNote"></p>
+        <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
+          <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
+        </label>
+      </div>
     </div>
-    <div class="preview-wrap">
-      <canvas id="previewCanvas"></canvas>
-      <p class="muted" id="previewInfo"></p>
-    </div>
-    <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
-      <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
-    </label>
   </section>
 
   <!-- STEP 3 -->
@@ -89,6 +101,7 @@
     </div>
     <div id="resultWrap" hidden>
       <h3>Result</h3>
+      <p class="muted small" id="resultSize"></p>
       <img id="resultImg" alt="Extended image result">
       <div class="result-actions">
         <a id="downloadBtn" class="btn btn-primary" download="jsm-extend.png">⬇ Download PNG</a>
@@ -224,6 +237,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003i"></script>
+<script src="app.js?v=20261003j"></script>
 </body>
 </html>
