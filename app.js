@@ -212,14 +212,28 @@ function selectPreset(p) {
   updateExtendUI();
 }
 $('customApply').onclick = () => {
-  let w = parseInt($('customW').value, 10), h = parseInt($('customH').value, 10);
-  if (!w || !h || w < 16 || h < 16) { alert('Enter a width and height of at least 16 px.'); return; }
-  w = Math.min(w, CONFIG.MAX_OUT_SIDE); h = Math.min(h, CONFIG.MAX_OUT_SIDE);
+  const msg = $('customMsg'), wEl = $('customW'), hEl = $('customH');
+  const w = parseInt(wEl.value, 10), h = parseInt(hEl.value, 10);
+  const wBad = !w || w < 16, hBad = !h || h < 16;
+  wEl.classList.toggle('input-err', wBad);
+  hEl.classList.toggle('input-err', hBad);
+  if (wBad || hBad) {
+    msg.textContent = (!wEl.value || !hEl.value)
+      ? 'Enter a custom width and height first.'
+      : 'Minimum 16 px per side.';
+    msg.classList.add('err');
+    return;
+  }
+  msg.textContent = ''; msg.classList.remove('err');
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  sizeMode = 'exact'; exactW = w; exactH = h;
+  sizeMode = 'exact'; exactW = Math.min(w, CONFIG.MAX_OUT_SIDE); exactH = Math.min(h, CONFIG.MAX_OUT_SIDE);
   drawPreview(); drawTextPreview(); updateExtendUI();
 };
+['customW', 'customH'].forEach(id => $(id).addEventListener('input', e => {
+  e.target.classList.remove('input-err');
+  const msg = $('customMsg'); msg.textContent = ''; msg.classList.remove('err');
+}));
 
 function drawPreview() {
   const C = currentCanvas();
