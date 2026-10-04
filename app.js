@@ -561,8 +561,22 @@ async function finishResult(aiSrc) {
   lastFinal = await loadImage(url);
   return { url, w: C.tw, h: C.th };
 }
-function briaImageDataUrl(out) {
-  const c = document.createElement('canvas');
+/* Show the extend result in the before/after compare slider:
+   "before" = the original placed on the target canvas (what you'd get with no AI),
+   "after" = the finished AI result. Both share the target dimensions, so the
+   comparison is pixel-aligned. */
+function showExtendResult(fin, C) {
+  const bc = document.createElement('canvas');
+  bc.width = C.tw; bc.height = C.th;
+  bc.getContext('2d').drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
+  $('baBeforeEx').src = bc.toDataURL('image/jpeg', 0.9);
+  $('baAfterEx').src = fin.url;
+  $('baWrapEx').style.setProperty('--pos', '50%');
+  $('downloadBtn').href = fin.url;
+  $('downloadBtn').download = `jsm-extend-${fin.w}x${fin.h}.png`;
+  $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
+}
+function briaImageDataUrl(out) {  const c = document.createElement('canvas');
   c.width = out.imgW; c.height = out.imgH;
   c.getContext('2d').drawImage(imgEl, 0, 0, out.imgW, out.imgH);
   return c.toDataURL('image/jpeg', 0.92);
@@ -583,11 +597,9 @@ $('extendBtn').onclick = async () => {
     // The server atomically deducts 1 credit; the returned balance is authoritative.
     const r = await backend.extend(briaImageDataUrl(out), out, prompt, store.token);
     setBalance(r.credits);
+    const C = currentCanvas();
     const fin = await finishResult(r.image_b64 || r.image_url);
-    $('resultImg').src = fin.url;
-    $('downloadBtn').href = fin.url;
-    $('downloadBtn').download = `jsm-extend-${fin.w}x${fin.h}.png`;
-    $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
+    showExtendResult(fin, C);
     $('resultWrap').hidden = false;
     $('demoBanner').hidden = !r.mock;
     drawTextPreview(); // step 4 must show the extended image, not the original
@@ -808,9 +820,9 @@ async function runSharpen() {
 $('sharpenBtn').onclick = runSharpen;
 $('shAgainBtn').onclick = () => { $('sharpenBtn').click(); }; // another run, same settings (1 credit)
 
-/* before/after compare slider */
-(() => {
-  const wrap = $('baWrap');
+/* before/after compare sliders (extend + sharpen) */
+['baWrap', 'baWrapEx'].forEach(wrapId => {
+  const wrap = $(wrapId);
   let drag = false;
   const setPos = e => {
     const r = wrap.getBoundingClientRect();
@@ -821,7 +833,7 @@ $('shAgainBtn').onclick = () => { $('sharpenBtn').click(); }; // another run, sa
   wrap.addEventListener('pointermove', e => { if (drag) setPos(e); });
   wrap.addEventListener('pointerup', () => drag = false);
   wrap.addEventListener('pointercancel', () => drag = false);
-})();
+});
 
 /* ---------- buy + redeem ---------- */
 $('payHint').textContent = DEMO
@@ -1100,10 +1112,9 @@ function updateTextUI() {
 /* Re-burn the current layers into the last AI result (after edits post-extend). */
 async function refreshFinal() {
   if (!lastAi) return;
+  const C = currentCanvas();
   const fin = await finishResult(lastAi.src);
-  $('resultImg').src = fin.url;
-  $('downloadBtn').href = fin.url;
-  $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
+  showExtendResult(fin, C);
   drawTextPreview();
 }
 

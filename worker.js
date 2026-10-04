@@ -193,6 +193,10 @@ async function handleStripeCreate(req, env) {
   const p = PACKS[pack] || PACKS.coffee5;
   const appUrl = env.APP_URL || 'https://jsm-extend.example.com/';
   const params = new URLSearchParams({
+    // New Stripe accounts have Managed Payments on by default: it rejects
+    // payment_method_types and demands product tax codes. We sell flat-price
+    // credit packs, so opt this session out -> classic Checkout behavior.
+    'managed_payments[enabled]': 'false',
     'payment_method_types[]': 'card',
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][unit_amount]': String(p.cents),
@@ -208,7 +212,10 @@ async function handleStripeCreate(req, env) {
     body: params.toString(),
   });
   const session = await res.json();
-  if (!res.ok || !session.url) return json({ error: 'Stripe checkout failed' }, 502);
+  if (!res.ok || !session.url) {
+    const detail = session && session.error && session.error.message ? ' — ' + session.error.message : '';
+    return json({ error: 'Stripe checkout failed' + detail }, 502);
+  }
   await env.DB.prepare('INSERT OR IGNORE INTO orders (order_id, status, created_at) VALUES (?, ?, ?)')
     .bind('stripe:' + session.id, 'created', Date.now()).run();
   return json({ checkout_url: session.url });
@@ -253,7 +260,7 @@ async function replicateRun(env, target, input) {
   const create = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Authorization': `Token ${env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ version, input }),
+    body: JSON.stringify(body),
   });
   if (!create.ok) throw new Error('Replicate rejected the request');
   let pred = await create.json();
