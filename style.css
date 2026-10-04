@@ -84,3 +84,27 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .pack-btn span{font-size:.78rem;color:var(--muted)}
 .pack-btn.active{border-color:var(--primary)}
 .pack-btn.active b{color:var(--primary)}
+.trust-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.trust-chips span{font-size:.82rem;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:4px 12px;background:var(--card)}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:4px}
+.feature{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px}
+.feature .f-icon{font-size:1.6rem}
+.feature h3{margin:8px 0 4px;font-size:1rem}
+.feature p{margin:0;font-size:.88rem;color:var(--muted)}
+.use-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.use-grid span{font-size:.85rem;border:1px solid var(--border);border-radius:999px;padding:6px 14px;background:var(--bg);color:var(--text)}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:12px}
+.price-card{background:var(--bg);border:2px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center}
+.price-card .p-amount{font-size:1.9rem;font-weight:800}
+.price-card .p-credits{color:var(--primary);font-weight:700;margin:2px 0 14px}
+.price-card .btn{width:100%;justify-content:center}
+.pricing-note{margin-top:14px;text-align:center}
+.site-footer{text-align:center;margin-top:30px}
+.footer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px;text-align:left;max-width:860px;margin:0 auto 18px;padding:0 16px}
+.footer-grid h4{margin:0 0 10px;font-size:.95rem}
+.footer-grid p{margin:0}
+.footer-grid ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.footer-grid a{color:var(--muted);text-decoration:none;font-size:.88rem}
+.footer-grid a:hover{color:var(--primary);text-decoration:underline}
+.footer-bottom{border-top:1px solid var(--border);padding-top:14px}
+.footer-bottom p{margin:0}

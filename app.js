@@ -371,6 +371,12 @@ function updateBuyLabels() {
   $('paypalBuyBtn').textContent = `🅿 Pay $${selectedPack.usd} with PayPal`;
   $('stripeBuyBtn').textContent = `💳 Pay $${selectedPack.usd} with Card`;
 }
+/* Landing-page pricing cards jump straight to checkout with a pack preselected. */
+function openModalWithPack(packId) {
+  const p = CONFIG.PACKS.find(x => x.id === packId);
+  if (p) { selectedPack = p; renderPacks(); updateBuyLabels(); }
+  openModal();
+}
 
 async function startPurchase(kind) {
   const btn = $(kind === 'stripe' ? 'stripeBuyBtn' : 'paypalBuyBtn');
