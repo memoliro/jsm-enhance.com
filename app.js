@@ -224,7 +224,7 @@ $('customApply').onclick = () => {
 function drawPreview() {
   const C = currentCanvas();
   const c = $('previewCanvas');
-  const maxW = 720, s = Math.min(1, maxW / C.tw);
+  const maxW = 1200, s = Math.min(1, maxW / C.tw);
   c.width = Math.round(C.tw * s); c.height = Math.round(C.th * s);
   const x = c.getContext('2d');
   x.clearRect(0, 0, c.width, c.height);

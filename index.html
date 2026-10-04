@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003m">
+<link rel="stylesheet" href="style.css?v=20261003n">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -36,7 +36,7 @@
   </div>
 </header>
 
-<main class="wrap">
+<main class="wrap-app">
   <section class="hero">
     <h1>AI Image Extender</h1>
     <p class="sub">Upload a photo, pick a new aspect ratio, and AI paints the extended background — no cropping, no stretching. <strong>1 free trial</strong>, then credits via PayPal or card. No account, no subscription.</p>
@@ -190,6 +190,8 @@
     </div>
   </div>
 
+</main>
+<div class="wrap-landing">
   <section class="card" id="features">
     <h2>Why JSM Extend</h2>
     <div class="features-grid">
@@ -262,7 +264,7 @@
     <details><summary>Can I add text to my image?</summary>
       <p>Yes — step 4 is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text alone is free; it only uses a credit when you also run the AI extension.</p></details>
   </section>
-</main>
+</div>
 
 <footer class="site-footer">
   <div class="footer-grid">
@@ -319,6 +321,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003m"></script>
+<script src="app.js?v=20261003n"></script>
 </body>
 </html>
