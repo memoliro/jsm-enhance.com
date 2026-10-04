@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JSM Extend — AI Image Extender (Outpainting)</title>
-<meta name="description" content="Expand your photos with AI. Upload an image, pick a new aspect ratio, and let AI generate the extended background. Free trial, then pay-per-use credits — no account needed.">
+<title>JSM Enhance — AI Image Enhancer</title>
+<meta name="description" content="Enhance your photos with AI — extend, sharpen, unblur. Free trial, then pay-per-use credits. No account, no subscription.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
 <script>
 // light-first: default to light unless a saved preference exists
@@ -17,7 +17,7 @@
 {"@type":"Question","name":"How do credits work?","acceptedAnswer":{"@type":"Answer","text":"1 credit = 1 extended image. You start with 1 free trial credit. When you run out, buy more with PayPal or card — $5 → 50 credits, $10 → 100 credits, $15 → 150 credits. You'll get a single-use code, paste it in, and the credits land in your secure wallet. No account, no subscription."}},
 {"@type":"Question","name":"Do my photos get stored?","acceptedAnswer":{"@type":"Answer","text":"No. Your image is sent to the AI provider for the few seconds of processing, then discarded. Nothing is kept on our servers."}},
 {"@type":"Question","name":"What sizes work best?","acceptedAnswer":{"@type":"Answer","text":"Modest expansions (e.g. 4:3 to 16:9) look the most natural. Extreme flips (square to tall 9:16) work but give the AI a lot of canvas to invent — results vary."}},
-{"@type":"Question","name":"Is there a subscription?","acceptedAnswer":{"@type":"Answer","text":"No — JSM Extend is strictly pay-per-use. Buy credits when you need them, use them whenever. Nothing renews, nothing is charged automatically."}},
+{"@type":"Question","name":"Is there a subscription?","acceptedAnswer":{"@type":"Answer","text":"No — JSM Enhance is strictly pay-per-use. Buy credits when you need them, use them whenever. Nothing renews, nothing is charged automatically."}},
 {"@type":"Question","name":"Do credits expire?","acceptedAnswer":{"@type":"Answer","text":"Never. Your balance stays in your wallet until you spend it, whether that's tomorrow or next year."}},
 {"@type":"Question","name":"What if the AI fails to generate?","acceptedAnswer":{"@type":"Answer","text":"You keep your credit. Failed generations are refunded automatically — you only ever pay for images you actually receive."}},
 {"@type":"Question","name":"Why don't I need an account?","acceptedAnswer":{"@type":"Answer","text":"Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it."}},
@@ -28,7 +28,7 @@
 <body>
 <header class="site-header">
   <div class="site-header-inner">
-    <a class="logo" href="./"><span class="logo-icon">JSM</span><span class="logo-text">Extend</span></a>
+    <a class="logo" href="./"><span class="logo-icon">JSM</span><span class="logo-text">Enhance</span></a>
     <nav class="header-nav" aria-label="AI tools">
       <div class="ws-tabs" role="tablist" aria-label="AI tools">
         <button class="ws-tab active" data-tool="extend" role="tab" aria-selected="true">🖼 Extend</button>
@@ -46,8 +46,8 @@
 
 <main class="wrap-app">
   <section class="hero">
-    <h1>AI Image Extender</h1>
-    <p class="sub">Upload a photo — <b>extend</b> it with AI outpainting, or <b>sharpen</b> a pixelated shot. <strong>1 free trial</strong>, then 1 credit per AI job via PayPal or card. No account, no subscription.</p>
+    <h1>AI Image Enhancer</h1>
+    <p class="sub">Upload a photo — <b>extend</b> it, <b>sharpen</b> it, or <b>unblur</b> it with AI. <strong>1 free trial</strong>, then 1 credit per AI job via PayPal or card. No account, no subscription.</p>
     <div class="trust-chips">
       <span>✓ No account</span><span>✓ No subscription</span><span>✓ Credits never expire</span><span>✓ Secure payments</span>
     </div>
@@ -176,7 +176,7 @@
       </div>
       <p class="muted small" id="resultSize"></p>
       <div class="result-actions">
-        <a id="downloadBtn" class="btn btn-primary" download="jsm-extend.png">⬇ Download PNG</a>
+        <a id="downloadBtn" class="btn btn-primary" download="jsm-enhance.png">⬇ Download PNG</a>
         <button id="againBtn" class="btn btn-secondary">↻ Regenerate <span class="cost">1 🪙</span></button>
         <button id="addTextBtn" class="btn btn-secondary">✏ Add text</button>
       </div>
@@ -283,7 +283,7 @@
 </main>
 <div class="wrap-landing">
   <section class="card" id="features">
-    <h2>Why JSM Extend</h2>
+    <h2>Why JSM Enhance</h2>
     <div class="features-grid">
       <div class="feature"><div class="f-icon">🔒</div><h3>No account needed</h3><p>Pay, get a code, extend. We never ask for your name or email.</p></div>
       <div class="feature"><div class="f-icon">🪙</div><h3>Pay per use</h3><p>No subscription, no hidden fees. $5 gets you 50 images — and credits never expire.</p></div>
@@ -351,7 +351,7 @@
     <details><summary>What sizes work best?</summary>
       <p>Modest expansions (e.g. 4:3 → 16:9) look the most natural. Extreme flips (square → tall 9:16) work but give the AI a lot of canvas to invent — results vary.</p></details>
     <details><summary>Is there a subscription?</summary>
-      <p>No — JSM Extend is strictly pay-per-use. Buy credits when you need them, use them whenever. Nothing renews, nothing is charged automatically.</p></details>
+      <p>No — JSM Enhance is strictly pay-per-use. Buy credits when you need them, use them whenever. Nothing renews, nothing is charged automatically.</p></details>
     <details><summary>Do credits expire?</summary>
       <p>Never. Your balance stays in your wallet until you spend it, whether that's tomorrow or next year.</p></details>
     <details><summary>What if the AI fails to generate?</summary>
@@ -363,7 +363,7 @@
 </section>
   <section class="card support-card">
     <h2>Support the site</h2>
-    <p class="muted">JSM Extend stays free to try. If it helps, you can buy a coffee.</p>
+    <p class="muted">JSM Enhance stays free to try. If it helps, you can buy a coffee.</p>
     <a href="https://www.buymeacoffee.com/memoliro" target="_blank" rel="noopener" class="btn btn-coffee">☕ Buy me a coffee</a>
   </section>
 </div>
@@ -371,7 +371,7 @@
 <footer class="site-footer">
   <div class="footer-grid">
     <div>
-      <h4>🖼️ JSM Extend</h4>
+      <h4>🖼️ JSM Enhance</h4>
       <p class="muted small">AI outpainting for your photos.<br>No account, no subscription — just credits.</p>
     </div>
     <div>
@@ -394,7 +394,7 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <p class="muted small">© 2026 JSM Extend · AI results may vary</p>
+    <p class="muted small">© 2026 JSM Enhance · AI results may vary</p>
   </div>
 </footer>
 

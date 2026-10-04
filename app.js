@@ -1,4 +1,4 @@
-/* JSM Extend — frontend. Set API_BASE to the Cloudflare Worker URL for live mode;
+/* JSM Enhance — frontend. Set API_BASE to the Cloudflare Worker URL for live mode;
    empty string = demo mode (simulated results, simulated payments). */
 const CONFIG = {
   API_BASE: 'https://jsm-extend-api.memoliro.workers.dev', // live Cloudflare Worker
@@ -597,7 +597,7 @@ function showExtendResult(fin, C) {
   $('baAfterEx').src = fin.url;
   $('baWrapEx').style.setProperty('--pos', '50%');
   $('downloadBtn').href = fin.url;
-  $('downloadBtn').download = `jsm-extend-${fin.w}x${fin.h}.png`;
+  $('downloadBtn').download = `jsm-enhance-${fin.w}x${fin.h}.png`;
   $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
 }
 function briaImageDataUrl(out) {  const c = document.createElement('canvas');
@@ -1487,7 +1487,7 @@ function initTextEditor() {
     const src = composeDownload();
     const a = document.createElement('a');
     a.href = src.toDataURL('image/png');
-    a.download = 'jsm-extend-text.png';
+    a.download = 'jsm-enhance-text.png';
     document.body.appendChild(a); a.click(); a.remove();
   };
   /* Canvas: click a layer to select it, drag to move it. */
