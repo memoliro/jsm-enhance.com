@@ -356,6 +356,7 @@ function updateExtendUI() {
   const total = needsExt ? (chained ? 2 : 1) : 0;
   btn.disabled = !needsExt;
   btn.style.display = needsExt ? '' : 'none';
+  $('extendBtnLabel').textContent = chained && needsExt ? '✨ Extend & Sharpen image' : '✨ Extend image';
   btn.querySelector('.cost').textContent = `${total} 🪙`;
   note.hidden = needsExt;
   /* Pay only when the AI invents new pixels. Pure resizes go free to JSM Image. */
@@ -596,8 +597,9 @@ $('addTextBtn').onclick = () => { drawTextPreview(); openEditor(); }; // editor 
 let activeTool = 'extend';
 function syncWsInfo() {
   const t = activeTool, ext = t === 'extend';
+  const chained = ext && $('chainSharpen') && $('chainSharpen').checked;
   $('wsNewLabel').textContent = ext ? 'New size' : 'Output';
-  $('wsCost').textContent = ext ? '1 credit per extension' : t === 'sharpen' ? '1 credit per photo' : 'Free';
+  $('wsCost').textContent = chained ? '2 credits per extension + sharpen' : ext ? '1 credit per extension' : t === 'sharpen' ? '1 credit per photo' : 'Free';
   $('wsNote').innerHTML =
     ext ? 'The AI paints only the new areas — your original stays pixel-sharp.'
     : t === 'sharpen' ? 'AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.'
@@ -699,7 +701,7 @@ document.querySelectorAll('#shScaleSeg button').forEach(b => b.onclick = () => {
   updateSharpenUI();
 });
 /* ---------- extend → enhance chain ---------- */
-let chainScale = 2;
+let chainScale = 1;
 document.querySelectorAll('#chainScaleSeg button').forEach(b => b.onclick = () => {
   chainScale = parseInt(b.dataset.scale, 10);
   document.querySelectorAll('#chainScaleSeg button').forEach(x => x.classList.toggle('active', x === b));
@@ -708,6 +710,7 @@ document.querySelectorAll('#chainScaleSeg button').forEach(b => b.onclick = () =
 $('chainSharpen').onchange = () => {
   $('chainScaleSeg').hidden = !$('chainSharpen').checked;
   updateExtendUI();
+  syncWsInfo(); // left-card Cost row: 2 credits per extension + sharpen
 };
 // Sharpen the just-finished extend result (text-free) with the chained scale,
 // then land on the Sharpen tab showing the final result.
