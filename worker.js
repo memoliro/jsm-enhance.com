@@ -1,7 +1,8 @@
 /* JSM Extend — Cloudflare Worker backend (hardened).
  *
  * SECURITY MODEL: the worker owns the credit ledger. The browser NEVER decides
- * whether a generation may run — every /api/extend call must present a wallet
+ * whether a generation may run — every /api/extend and /api/sharpen call
+ * must present a wallet
  * token, and credits are decremented ATOMICALLY in D1 before the GPU is touched.
  * Calling the endpoint directly with curl and no valid token = 402, $0 spent.
  *
@@ -12,12 +13,14 @@
  *   POST /api/paypal/create-order   {pack} -> {approval_url}
  *   POST /api/paypal/capture        {orderId} -> {code}
  *   POST /api/extend      {token, image, outpaint, prompt} -> {image_url, credits}
+ *   POST /api/sharpen     {token, image, scale, face_enhance} -> {image_url, credits}
  *
  * Bindings: DB (D1). Secrets: REPLICATE_API_TOKEN, PAYPAL_CLIENT_ID,
  * PAYPAL_CLIENT_SECRET. Vars: PAYPAL_BASE, APP_URL, REPLICATE_MODEL_VERSION.
  */
 
 const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804'; // fermatresearch/sdxl-outpainting-lora — verify current before prod
+const SHARPEN_VERSION = 'b3ef194191d13140337468c916c2c5b96dd0cb06dffc032a022a31807f6a5ea8'; // nightmareai/real-esrgan — restoration + upscale
 /* Tiered pricing. Credits are ALWAYS derived from the amount the payment
    provider reports (PayPal capture amount / Stripe amount_total) — never from
    the client — so a tampered pack id can't mint wrong credits. */
@@ -238,11 +241,11 @@ async function handleStripeVerify(req, env) {
 }
 
 /* ---------- extend via Replicate (credit-gated) ---------- */
-async function replicatePrediction(env, input) {
+async function replicatePrediction(env, version, input) {
   const create = await fetch('https://api.replicate.com/v1/predictions', {
     method: 'POST',
     headers: { 'Authorization': `Token ${env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ version: env.REPLICATE_MODEL_VERSION || REPLICATE_VERSION, input }),
+    body: JSON.stringify({ version, input }),
   });
   if (!create.ok) throw new Error('Replicate rejected the request');
   let pred = await create.json();
@@ -260,17 +263,43 @@ async function replicatePrediction(env, input) {
   return typeof out === 'string' ? out : out.url();
 }
 
+/* ---------- shared credit-gated GPU plumbing ---------- */
+// THE GATE: atomic debit. No valid token with credits -> false, $0 spent.
+async function debitWallet(env, token) {
+  const r = await env.DB.prepare(
+    'UPDATE wallets SET credits = credits - 1 WHERE token = ? AND credits > 0'
+  ).bind(String(token || '')).run();
+  return r.meta.changes > 0;
+}
+async function refundWallet(env, token) {
+  await env.DB.prepare('UPDATE wallets SET credits = credits + 1 WHERE token = ?')
+    .bind(String(token)).run().catch(() => {});
+}
+async function walletCredits(env, token) {
+  const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(String(token)).first();
+  return w ? w.credits : 0;
+}
+async function logUsage(env) {
+  await env.DB.prepare('INSERT INTO usage_log (created_at, credits_spent) VALUES (?, 1)').bind(Date.now()).run().catch(() => {});
+}
+/* Fetch a result URL through the worker and return a data: URL, so the
+   browser never draws a cross-origin image to canvas (tainted canvas). */
+async function fetchImageAsDataUrl(url) {
+  const imgRes = await fetch(url);
+  if (!imgRes.ok) throw new Error('Could not download the AI result');
+  const buf = await imgRes.arrayBuffer();
+  const ct = imgRes.headers.get('content-type') || 'image/png';
+  return `data:${ct};base64,${b64encode(buf)}`;
+}
+
+/* ---------- extend via Replicate (credit-gated) ---------- */
 async function handleExtend(req, env) {
   if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
   const { token, image, outpaint, prompt } = await req.json().catch(() => ({}));
   if (!image || !outpaint) return json({ error: 'Missing image or outpaint params' }, 400);
 
-  // THE GATE: atomic decrement. No valid token with credits -> 402, $0 spent.
   // curl without a token, or with an empty wallet, cannot reach the GPU.
-  const debit = await env.DB.prepare(
-    'UPDATE wallets SET credits = credits - 1 WHERE token = ? AND credits > 0'
-  ).bind(String(token || '')).run();
-  if (!debit.meta.changes) return json({ error: 'No credits — buy more to continue.' }, 402);
+  if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
 
   const input = {
     image,
@@ -284,21 +313,37 @@ async function handleExtend(req, env) {
     num_outputs: 1,
   };
   try {
-    const url = await replicatePrediction(env, input);
-    /* Fetch the result through the worker and return it as base64. The
-       browser must never draw a cross-origin URL to a canvas: that taints
-       it and toDataURL() throws, losing the user's image after the credit
-       was already spent. A data: URL can never taint. */
-    const imgRes = await fetch(url);
-    if (!imgRes.ok) throw new Error('Could not download the AI result');
-    const buf = await imgRes.arrayBuffer();
-    const ct = imgRes.headers.get('content-type') || 'image/png';
-    await env.DB.prepare('INSERT INTO usage_log (created_at, credits_spent) VALUES (?, 1)').bind(Date.now()).run().catch(() => {});
-    const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(String(token)).first();
-    return json({ image_b64: `data:${ct};base64,${b64encode(buf)}`, image_url: url, credits: w ? w.credits : 0 });
+    const url = await replicatePrediction(env, env.REPLICATE_MODEL_VERSION || REPLICATE_VERSION, input);
+    const image_b64 = await fetchImageAsDataUrl(url);
+    await logUsage(env);
+    return json({ image_b64, image_url: url, credits: await walletCredits(env, token) });
   } catch (e) {
     // Refund: the GPU never delivered, so the credit goes back.
-    await env.DB.prepare('UPDATE wallets SET credits = credits + 1 WHERE token = ?').bind(String(token)).run().catch(() => {});
+    await refundWallet(env, token);
+    return json({ error: e.message + ' — no credit was used.' }, 502);
+  }
+}
+
+/* ---------- sharpen via Replicate (credit-gated) ---------- */
+async function handleSharpen(req, env) {
+  if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
+  const { token, image, scale, face_enhance } = await req.json().catch(() => ({}));
+  if (!image) return json({ error: 'Missing image' }, 400);
+  const sc = scale === 2 ? 2 : 4;
+
+  if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
+
+  try {
+    const url = await replicatePrediction(
+      env,
+      env.REPLICATE_SHARPEN_VERSION || SHARPEN_VERSION,
+      { image, scale: sc, face_enhance: !!face_enhance }
+    );
+    const image_b64 = await fetchImageAsDataUrl(url);
+    await logUsage(env);
+    return json({ image_b64, image_url: url, scale: sc, credits: await walletCredits(env, token) });
+  } catch (e) {
+    await refundWallet(env, token);
     return json({ error: e.message + ' — no credit was used.' }, 502);
   }
 }
@@ -317,6 +362,7 @@ export default {
       if (url.pathname === '/api/stripe/create-checkout' && req.method === 'POST') return handleStripeCreate(req, env);
       if (url.pathname === '/api/stripe/verify' && req.method === 'POST') return handleStripeVerify(req, env);
       if (url.pathname === '/api/extend' && req.method === 'POST') return handleExtend(req, env);
+      if (url.pathname === '/api/sharpen' && req.method === 'POST') return handleSharpen(req, env);
       if (url.pathname === '/api/health') return json({ ok: true, live: !!env.REPLICATE_API_TOKEN });
       return json({ error: 'Not found' }, 404);
     } catch (e) {
