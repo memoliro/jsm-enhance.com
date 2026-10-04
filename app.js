@@ -255,28 +255,35 @@ function markRatioCustom(label) {
   $('ratioDDLabel').textContent = label;
   $('ratioDDBox').innerHTML = `<i ${ratioBoxStyle(exactW, exactH, 26)}></i>`;
 }
-$('customApply').onclick = () => {
+/* Custom dimensions apply live as you type (debounced) — no Apply button. */
+let customTimer = null;
+function applyCustomLive() {
   const msg = $('customMsg'), wEl = $('customW'), hEl = $('customH');
   const w = parseInt(wEl.value, 10), h = parseInt(hEl.value, 10);
+  if (!wEl.value || !hEl.value) {
+    // still typing — clear quietly and keep the last valid preview
+    wEl.classList.remove('input-err'); hEl.classList.remove('input-err');
+    msg.textContent = ''; msg.classList.remove('err');
+    return;
+  }
   const wBad = !w || w < 16, hBad = !h || h < 16;
   wEl.classList.toggle('input-err', wBad);
   hEl.classList.toggle('input-err', hBad);
   if (wBad || hBad) {
-    msg.textContent = (!wEl.value || !hEl.value)
-      ? 'Enter a custom width and height first.'
-      : 'Minimum 16 px per side.';
+    msg.textContent = 'Minimum 16 px per side.';
     msg.classList.add('err');
     return;
   }
   msg.textContent = ''; msg.classList.remove('err');
-  sizeMode = 'exact'; exactW = Math.min(w, CONFIG.MAX_OUT_SIDE); exactH = Math.min(h, CONFIG.MAX_OUT_SIDE);
+  sizeMode = 'exact';
+  exactW = Math.min(w, CONFIG.MAX_OUT_SIDE); exactH = Math.min(h, CONFIG.MAX_OUT_SIDE);
   markRatioCustom(`${exactW.toLocaleString()} × ${exactH.toLocaleString()}`);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   drawPreview(); drawTextPreview(); updateExtendUI();
-};
-['customW', 'customH'].forEach(id => $(id).addEventListener('input', e => {
-  e.target.classList.remove('input-err');
-  const msg = $('customMsg'); msg.textContent = ''; msg.classList.remove('err');
+}
+['customW', 'customH'].forEach(id => $(id).addEventListener('input', () => {
+  clearTimeout(customTimer);
+  customTimer = setTimeout(applyCustomLive, 500);
 }));
 
 /* Preview mode: 'planned' (default) shows the tool's output preview,

@@ -32,7 +32,7 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .dropzone{border:2px dashed var(--border);border-radius:12px;padding:44px 20px;text-align:center;cursor:pointer;transition:.15s}
 .dropzone:hover,.dropzone.drag{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 6%,transparent)}
 .dz-icon{font-size:2.4rem}
-.custom-ratio{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-bottom:6px}
+.custom-ratio{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
 .dim-field{display:grid;gap:4px;font-size:.78rem;font-weight:700;color:var(--muted)}
 .dim-field input{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem;font-variant-numeric:tabular-nums}
 .dim-field input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 25%,transparent)}

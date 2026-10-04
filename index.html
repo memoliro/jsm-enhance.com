@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004d">
+<link rel="stylesheet" href="style.css?v=20261004e">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -106,7 +106,6 @@
           <div class="custom-ratio">
             <label class="dim-field"><span>Width</span><input type="number" id="customW" min="16" max="4096" placeholder="1920"></label>
             <label class="dim-field"><span>Height</span><input type="number" id="customH" min="16" max="4096" placeholder="1080"></label>
-            <button id="customApply" class="btn btn-secondary">Apply</button>
           </div>
           <p class="muted small err-msg" id="customMsg"></p>
           <h3 class="ctl-h">Social &amp; standard presets</h3>
@@ -370,6 +369,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004d"></script>
+<script src="app.js?v=20261004e"></script>
 </body>
 </html>
