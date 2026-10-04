@@ -546,9 +546,24 @@ function sharpenInputDataUrl() {
 function updateSharpenUI() {
   if (!imgEl) return;
   const { w, h } = sharpenInputDims();
-  $('shSizeLine').textContent =
-    `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px in → ${(w * shScale).toLocaleString()} × ${(h * shScale).toLocaleString()} px out` +
-    (w !== imgW ? ' (input capped for speed)' : '');
+  const ow = w * shScale, oh = h * shScale;
+  $('shSizeLine').textContent = shScale === 1
+    ? `${w.toLocaleString()} × ${h.toLocaleString()} px in → same size out, AI-enhanced`
+    : `${w.toLocaleString()} × ${h.toLocaleString()} px in → ${ow.toLocaleString()} × ${oh.toLocaleString()} px out` +
+      (w !== imgW ? ' (input capped for speed)' : '');
+  /* proportional frames: input box fixed at 44px wide, output scaled from it */
+  const unit = 44 / w;
+  const finBox = $('shFinBox');
+  finBox.style.width = '44px';
+  finBox.style.height = Math.max(20, Math.round(h * unit)) + 'px';
+  let bw = ow * unit, bh = oh * unit;
+  const cap = 176 / Math.max(bw, bh, 1);
+  if (cap < 1) { bw *= cap; bh *= cap; }
+  const foutBox = $('shFoutBox');
+  foutBox.style.width = Math.max(20, Math.round(bw)) + 'px';
+  foutBox.style.height = Math.max(20, Math.round(bh)) + 'px';
+  $('shFinLabel').textContent = `${w}×${h}`;
+  $('shFoutLabel').textContent = `${ow}×${oh}`;
 }
 document.querySelectorAll('#shScaleSeg button').forEach(b => b.onclick = () => {
   shScale = parseInt(b.dataset.scale, 10);
@@ -565,20 +580,30 @@ async function runSharpen() {
   $('sharpenBtn').disabled = true;
   try {
     // The server atomically deducts 1 credit; the returned balance is authoritative.
-    const r = await backend.sharpen(sharpenInputDataUrl(), shScale, face, store.token);
+    // 1x = enhance at original size: run the model at 2x, then size back down.
+    const modelScale = shScale === 1 ? 2 : shScale;
+    const r = await backend.sharpen(sharpenInputDataUrl(), modelScale, face, store.token);
     setBalance(r.credits);
-    const after = await loadImage(r.image_b64); // data: URL — can never taint
+    const ai = await loadImage(r.image_b64); // data: URL — can never taint
     const { w, h } = sharpenInputDims();
+    let outUrl = r.image_b64, ow = ai.naturalWidth, oh = ai.naturalHeight;
+    if (shScale === 1) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(ai, 0, 0, w, h);
+      outUrl = c.toDataURL('image/png');
+      ow = w; oh = h;
+    }
     // before image at the same aspect; CSS scales both to the wrap
     const bc = document.createElement('canvas');
     bc.width = w; bc.height = h;
     bc.getContext('2d').drawImage(imgEl, 0, 0, w, h);
     $('baBeforeImg').src = bc.toDataURL('image/jpeg', 0.9);
-    $('baAfter').src = r.image_b64;
+    $('baAfter').src = outUrl;
     $('baWrap').style.setProperty('--pos', '50%');
-    $('shDownloadBtn').href = r.image_b64;
-    $('shDownloadBtn').download = `jsm-sharpen-${after.naturalWidth}x${after.naturalHeight}.png`;
-    $('shResultSize').textContent = `${after.naturalWidth.toLocaleString()} × ${after.naturalHeight.toLocaleString()} px PNG`;
+    $('shDownloadBtn').href = outUrl;
+    $('shDownloadBtn').download = `jsm-sharpen-${ow}x${oh}.png`;
+    $('shResultSize').textContent = `${ow.toLocaleString()} × ${oh.toLocaleString()} px PNG`;
     $('shResultWrap').hidden = false;
     $('demoBanner').hidden = !r.mock;
     $('shResultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });

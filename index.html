@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003w">
+<link rel="stylesheet" href="style.css?v=20261003x">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -149,12 +149,17 @@
       <div class="sh-row">
         <span class="muted">Upscale</span>
         <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
-          <button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
+          <button data-scale="1">1×</button><button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
         </div>
       </div>
       <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
     </div>
     <p class="muted small" id="shSizeLine"></p>
+    <div class="sh-frames" aria-hidden="true">
+      <div class="sh-fcol"><div class="sh-fbox" id="shFinBox"></div><span class="sh-flabel" id="shFinLabel"></span></div>
+      <span class="sh-farrow">→</span>
+      <div class="sh-fcol"><div class="sh-fbox sh-fout" id="shFoutBox"></div><span class="sh-flabel" id="shFoutLabel"></span></div>
+    </div>
     <div class="extend-row">
       <button id="sharpenBtn" class="btn btn-primary">✨ Sharpen photo <span class="cost">1 🪙</span></button>
     </div>
@@ -375,6 +380,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003w"></script>
+<script src="app.js?v=20261003x"></script>
 </body>
 </html>
