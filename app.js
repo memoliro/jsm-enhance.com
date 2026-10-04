@@ -153,11 +153,14 @@ function loadFile(f) {
   im.onload = () => {
     imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
     URL.revokeObjectURL(url);
+    lastAi = null; lastFinal = null;
     $('stepRatio').hidden = false;
     $('stepExtend').hidden = false;
+    $('stepText').hidden = false;
     buildRatioGrid();
     buildPresetGrid();
     selectRatio(RATIOS[0]);
+    drawTextPreview();
     $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   im.onerror = () => alert('Could not read that image.');
@@ -183,6 +186,7 @@ function selectRatio(r) {
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   layout = computeLayout(imgW, imgH, r.rw, r.rh);
   drawPreview();
+  drawTextPreview();
   updateExtendUI();
 }
 function buildPresetGrid() {
@@ -204,6 +208,7 @@ function selectPreset(p) {
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', +b.dataset.w === p.w && +b.dataset.h === p.h));
   drawPreview();
+  drawTextPreview();
   updateExtendUI();
 }
 $('customApply').onclick = () => {
@@ -213,7 +218,7 @@ $('customApply').onclick = () => {
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   sizeMode = 'exact'; exactW = w; exactH = h;
-  drawPreview(); updateExtendUI();
+  drawPreview(); drawTextPreview(); updateExtendUI();
 };
 
 function drawPreview() {
@@ -392,12 +397,16 @@ function loadImage(src) {
 async function finishResult(aiSrc) {
   const C = currentCanvas();
   const ai = await loadImage(aiSrc);
+  lastAi = ai;
   const c = document.createElement('canvas');
   c.width = C.tw; c.height = C.th;
   const x = c.getContext('2d');
   x.drawImage(ai, 0, 0, C.tw, C.th);
   x.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
-  return { url: c.toDataURL('image/png'), w: C.tw, h: C.th };
+  drawTextOn(x, C.tw, C.th); // burn the text studio overlay into the final image
+  const url = c.toDataURL('image/png');
+  lastFinal = await loadImage(url);
+  return { url, w: C.tw, h: C.th };
 }
 function workingImageDataUrl(out) {
   const c = document.createElement('canvas');
@@ -435,7 +444,7 @@ $('extendBtn').onclick = async () => {
     updateExtendUI();
   }
 };
-$('againBtn').onclick = () => { $('resultWrap').hidden = true; updateExtendUI(); };
+$('againBtn').onclick = () => { $('resultWrap').hidden = true; lastAi = null; lastFinal = null; drawTextPreview(); updateExtendUI(); };
 
 /* ---------- buy + redeem ---------- */
 $('payHint').textContent = DEMO
@@ -567,3 +576,229 @@ ensureWallet();
 renderPacks();
 updateBuyLabels();
 $('demoBanner').hidden = !DEMO;
+
+/* ---------- Step 4: text studio ---------- */
+/* Curated popular Google Fonts (loaded on demand, never all at once). */
+const FONTS = [
+  { name: 'Anton', cat: 'Display' }, { name: 'Bebas Neue', cat: 'Display' },
+  { name: 'Archivo Black', cat: 'Display' }, { name: 'Oswald', cat: 'Display' },
+  { name: 'Fjalla One', cat: 'Display' }, { name: 'Alfa Slab One', cat: 'Display' },
+  { name: 'Bungee', cat: 'Display' }, { name: 'Titan One', cat: 'Display' },
+  { name: 'Luckiest Guy', cat: 'Display' }, { name: 'Russo One', cat: 'Display' },
+  { name: 'Orbitron', cat: 'Display' }, { name: 'Audiowide', cat: 'Display' },
+  { name: 'Barlow Condensed', cat: 'Display' },
+  { name: 'Montserrat', cat: 'Sans' }, { name: 'Poppins', cat: 'Sans' },
+  { name: 'Raleway', cat: 'Sans' }, { name: 'Work Sans', cat: 'Sans' },
+  { name: 'Inter', cat: 'Sans' }, { name: 'Roboto', cat: 'Sans' },
+  { name: 'Open Sans', cat: 'Sans' }, { name: 'Lato', cat: 'Sans' },
+  { name: 'Playfair Display', cat: 'Serif' }, { name: 'Merriweather', cat: 'Serif' },
+  { name: 'Lobster', cat: 'Script' }, { name: 'Pacifico', cat: 'Script' },
+  { name: 'Dancing Script', cat: 'Script' }, { name: 'Caveat', cat: 'Script' },
+  { name: 'Fredoka', cat: 'Rounded' }, { name: 'Baloo 2', cat: 'Rounded' },
+];
+const textState = {
+  line1: '', line2: '', font: 'Anton', sizePct: 11, color: '#ffffff',
+  bold: true, outline: true, tracking: 2, yPct: 70, align: 'center',
+};
+let lastAi = null;    // Image: AI working-size result (for re-burning text)
+let lastFinal = null; // Image: final composited result (AI + crisp original + text)
+
+const loadedFonts = new Set();
+function ensureFont(name) {
+  if (loadedFonts.has(name)) return Promise.resolve();
+  loadedFonts.add(name);
+  const fam = name.replace(/ /g, '+');
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${fam}:wght@400;700&display=swap`;
+  document.head.appendChild(link);
+  const timeout = new Promise(res => setTimeout(res, 3500));
+  let loaded = Promise.resolve();
+  try { loaded = document.fonts.load(`700 40px "${name}"`).catch(() => {}); } catch (e) {}
+  return Promise.race([loaded, timeout]);
+}
+
+/* Draw the current text state onto a 2D context of W×H. Pure function of textState. */
+function drawTextOn(ctx, W, H) {
+  const t = textState;
+  const l1 = t.line1.trim(), l2 = t.line2.trim();
+  if (!l1 && !l2) return;
+  const size = Math.max(8, W * t.sizePct / 100);
+  const weight = t.bold ? 700 : 400;
+  const x = t.align === 'center' ? W / 2 : t.align === 'right' ? W * 0.94 : W * 0.06;
+  ctx.save();
+  ctx.textAlign = t.align;
+  ctx.textBaseline = 'alphabetic';
+  ctx.lineJoin = 'round';
+  try { ctx.letterSpacing = t.tracking + 'px'; } catch (e) {}
+  const drawLine = (txt, fs, y) => {
+    ctx.font = `${weight} ${fs}px "${t.font}", sans-serif`;
+    if (t.outline) {
+      ctx.lineWidth = Math.max(2, fs / 9);
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(txt, x, y);
+    }
+    ctx.fillStyle = t.color;
+    ctx.fillText(txt, x, y);
+  };
+  const y1 = H * t.yPct / 100;
+  if (l1) drawLine(l1, size, y1);
+  if (l2) drawLine(l2, size * 0.55, y1 + size * 0.78);
+  ctx.restore();
+}
+
+/* Full-resolution composition: final AI result if extended, else the
+   original placed on the chosen canvas — plus the text overlay. */
+function composeDownload() {
+  const c = document.createElement('canvas');
+  if (lastFinal) {
+    c.width = lastFinal.naturalWidth; c.height = lastFinal.naturalHeight;
+    c.getContext('2d').drawImage(lastFinal, 0, 0);
+  } else {
+    const C = currentCanvas();
+    c.width = C.tw; c.height = C.th;
+    const x = c.getContext('2d');
+    x.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
+    drawTextOn(x, C.tw, C.th);
+  }
+  return c;
+}
+function drawTextPreview() {
+  if (!imgEl) return;
+  const src = composeDownload();
+  const c = $('textCanvas');
+  const s = Math.min(1, 900 / Math.max(src.width, src.height));
+  c.width = Math.max(1, Math.round(src.width * s));
+  c.height = Math.max(1, Math.round(src.height * s));
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+}
+/* Re-burn the current text into the last AI result (after text edits post-extend). */
+async function refreshFinal() {
+  if (!lastAi) return;
+  const fin = await finishResult(lastAi.src);
+  $('resultImg').src = fin.url;
+  $('downloadBtn').href = fin.url;
+  $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
+  drawTextPreview();
+}
+let textRaf = 0;
+function refreshText() {
+  cancelAnimationFrame(textRaf);
+  textRaf = requestAnimationFrame(async () => {
+    await ensureFont(textState.font);
+    drawTextPreview();
+    if (lastAi) await refreshFinal();
+  });
+}
+
+/* ---------- font dropdown ---------- */
+function buildFontList(filter) {
+  const list = $('fontList');
+  list.innerHTML = '';
+  const q = (filter || '').trim().toLowerCase();
+  let lastCat = '', n = 0;
+  FONTS.filter(f => f.name.toLowerCase().includes(q)).forEach(f => {
+    if (f.cat !== lastCat) {
+      lastCat = f.cat;
+      const h = document.createElement('div');
+      h.className = 'font-cat'; h.textContent = f.cat;
+      list.appendChild(h);
+    }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'font-item' + (f.name === textState.font ? ' active' : '');
+    b.setAttribute('role', 'option');
+    const ag = document.createElement('span'); ag.className = 'font-ag'; ag.textContent = 'Ag';
+    const nm = document.createElement('span'); nm.textContent = f.name;
+    b.append(ag, nm);
+    if (loadedFonts.has(f.name)) b.style.fontFamily = `"${f.name}", sans-serif`;
+    b.addEventListener('mouseenter', () => {
+      ensureFont(f.name).then(() => { b.style.fontFamily = `"${f.name}", sans-serif`; });
+    });
+    b.onclick = () => selectFont(f.name);
+    list.appendChild(b);
+    n++;
+  });
+  if (!n) list.innerHTML = '<div class="muted small" style="padding:10px">No fonts match.</div>';
+}
+function selectFont(name) {
+  textState.font = name;
+  $('fontBtnName').textContent = name;
+  $('fontBtnSample').style.fontFamily = `"${name}", sans-serif`;
+  $('fontDrop').hidden = true;
+  $('fontBtn').setAttribute('aria-expanded', 'false');
+  buildFontList($('fontFilter').value);
+  ensureFont(name).then(refreshText);
+}
+function initFontPicker() {
+  const btn = $('fontBtn'), drop = $('fontDrop'), filter = $('fontFilter');
+  $('fontBtnSample').style.fontFamily = '"Anton", sans-serif';
+  buildFontList('');
+  btn.onclick = e => {
+    e.stopPropagation();
+    const open = drop.hidden;
+    drop.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) { filter.value = ''; buildFontList(''); filter.focus(); }
+  };
+  filter.addEventListener('input', () => buildFontList(filter.value));
+  filter.addEventListener('click', e => e.stopPropagation());
+  drop.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', () => { drop.hidden = true; btn.setAttribute('aria-expanded', 'false'); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { drop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+  });
+}
+
+/* ---------- text controls ---------- */
+function initTextStudio() {
+  initFontPicker();
+  ensureFont(textState.font); // default ready for first preview
+  $('textLine1').addEventListener('input', e => { textState.line1 = e.target.value; refreshText(); });
+  $('textLine2').addEventListener('input', e => { textState.line2 = e.target.value; refreshText(); });
+  const sizeEl = $('textSize');
+  const sizeLabel = () => { $('textSizeVal').textContent = textState.sizePct.toFixed(1) + '% of width'; };
+  sizeEl.addEventListener('input', () => { textState.sizePct = parseFloat(sizeEl.value); sizeLabel(); refreshText(); });
+  sizeLabel();
+  $('textY').addEventListener('input', e => { textState.yPct = parseFloat(e.target.value); refreshText(); });
+  $('alignRow').querySelectorAll('button').forEach(b => {
+    b.onclick = () => {
+      textState.align = b.dataset.align;
+      $('alignRow').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      refreshText();
+    };
+  });
+  const colorEl = $('textColor');
+  const sw = ['#ffffff', '#f5c542', '#000000', '#dc2626', '#2563eb'];
+  const swWrap = $('swatches');
+  sw.forEach(hex => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.style.background = hex; b.title = hex;
+    b.className = hex === textState.color ? 'active' : '';
+    b.onclick = () => {
+      textState.color = hex; colorEl.value = hex;
+      swWrap.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      refreshText();
+    };
+    swWrap.appendChild(b);
+  });
+  colorEl.addEventListener('input', () => {
+    textState.color = colorEl.value;
+    swWrap.querySelectorAll('button').forEach(x => x.classList.toggle('active', false));
+    refreshText();
+  });
+  $('textBold').addEventListener('change', e => { textState.bold = e.target.checked; refreshText(); });
+  $('textOutline').addEventListener('change', e => { textState.outline = e.target.checked; refreshText(); });
+  const trackEl = $('textTrack');
+  const trackLabel = () => { $('trackVal').textContent = textState.tracking + 'px'; };
+  trackEl.addEventListener('input', () => { textState.tracking = parseInt(trackEl.value, 10); trackLabel(); refreshText(); });
+  trackLabel();
+  $('textDownload').onclick = () => {
+    const src = composeDownload();
+    const a = document.createElement('a');
+    a.href = src.toDataURL('image/png');
+    a.download = 'jsm-extend-text.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+}
+initTextStudio();
