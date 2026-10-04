@@ -403,7 +403,8 @@ async function finishResult(aiSrc) {
   const x = c.getContext('2d');
   x.drawImage(ai, 0, 0, C.tw, C.th);
   x.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
-  drawTextOn(x, C.tw, C.th); // burn the text studio overlay into the final image
+  lastClean = await loadImage(c.toDataURL('image/png'));
+  drawLayers(x, C.tw, C.th); // burn the text layers into the final image
   const url = c.toDataURL('image/png');
   lastFinal = await loadImage(url);
   return { url, w: C.tw, h: C.th };
@@ -577,7 +578,8 @@ renderPacks();
 updateBuyLabels();
 $('demoBanner').hidden = !DEMO;
 
-/* ---------- Step 4: text studio ---------- */
+
+/* ---------- Step 4: text studio (layer-based fullscreen editor) ---------- */
 /* Curated popular Google Fonts (loaded on demand, never all at once). */
 const FONTS = [
   { name: 'Anton', cat: 'Display' }, { name: 'Bebas Neue', cat: 'Display' },
@@ -596,12 +598,26 @@ const FONTS = [
   { name: 'Dancing Script', cat: 'Script' }, { name: 'Caveat', cat: 'Script' },
   { name: 'Fredoka', cat: 'Rounded' }, { name: 'Baloo 2', cat: 'Rounded' },
 ];
-const textState = {
-  line1: '', line2: '', font: 'Anton', sizePct: 11, color: '#ffffff',
-  bold: true, outline: true, tracking: 2, yPct: 70, align: 'center',
-};
+/* Each text line is an independent layer: own font, size, color, position,
+   rotation and style — like a real text editor, tools edit the selection. */
+let textLayers = [];
+let selectedId = null;
+let layerSeq = 0;
 let lastAi = null;    // Image: AI working-size result (for re-burning text)
-let lastFinal = null; // Image: final composited result (AI + crisp original + text)
+let lastClean = null; // Image: final without text (AI + crisp original)
+let lastFinal = null; // Image: final composited result (with text)
+
+const sel = () => textLayers.find(l => l.id === selectedId) || null;
+function addLayer(text) {
+  const l = {
+    id: 't' + (++layerSeq), text: text == null ? 'New text' : text,
+    font: 'Anton', sizePct: 11, color: '#ffffff', bold: true, outline: true,
+    tracking: 2, xPct: 50, yPct: 70, align: 'center', rotation: 0, visible: true,
+  };
+  textLayers.push(l);
+  selectedId = l.id;
+  return l;
+}
 
 const loadedFonts = new Set();
 function ensureFont(name) {
@@ -618,51 +634,72 @@ function ensureFont(name) {
   return Promise.race([loaded, timeout]);
 }
 
-/* Draw the current text state onto a 2D context of W×H. Pure function of textState. */
-function drawTextOn(ctx, W, H) {
-  const t = textState;
-  const l1 = t.line1.trim(), l2 = t.line2.trim();
-  if (!l1 && !l2) return;
-  const size = Math.max(8, W * t.sizePct / 100);
-  const weight = t.bold ? 700 : 400;
-  const x = t.align === 'center' ? W / 2 : t.align === 'right' ? W * 0.94 : W * 0.06;
+const hitCtx = document.createElement('canvas').getContext('2d');
+function measureLayer(l, W) {
+  const size = Math.max(8, W * l.sizePct / 100);
+  hitCtx.font = `${l.bold ? 700 : 400} ${size}px "${l.font}", sans-serif`;
+  let w = 0;
+  try { w = hitCtx.measureText(l.text).width + l.tracking * Math.max(0, l.text.length - 1); } catch (e) {}
+  return { w, h: size * 1.25, size };
+}
+function drawLayer(ctx, l, W, H) {
+  const size = Math.max(8, W * l.sizePct / 100);
   ctx.save();
-  ctx.textAlign = t.align;
-  ctx.textBaseline = 'alphabetic';
+  ctx.translate(W * l.xPct / 100, H * l.yPct / 100);
+  ctx.rotate(l.rotation * Math.PI / 180);
+  ctx.font = `${l.bold ? 700 : 400} ${size}px "${l.font}", sans-serif`;
+  ctx.textAlign = l.align;
+  ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  try { ctx.letterSpacing = t.tracking + 'px'; } catch (e) {}
-  const drawLine = (txt, fs, y) => {
-    ctx.font = `${weight} ${fs}px "${t.font}", sans-serif`;
-    if (t.outline) {
-      ctx.lineWidth = Math.max(2, fs / 9);
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.strokeText(txt, x, y);
-    }
-    ctx.fillStyle = t.color;
-    ctx.fillText(txt, x, y);
-  };
-  const y1 = H * t.yPct / 100;
-  if (l1) drawLine(l1, size, y1);
-  if (l2) drawLine(l2, size * 0.55, y1 + size * 0.78);
+  try { ctx.letterSpacing = l.tracking + 'px'; } catch (e) {}
+  if (l.outline) {
+    ctx.lineWidth = Math.max(2, size / 9);
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(l.text, 0, 0);
+  }
+  ctx.fillStyle = l.color;
+  ctx.fillText(l.text, 0, 0);
   ctx.restore();
 }
+function drawLayers(ctx, W, H) {
+  for (const l of textLayers) {
+    if (l.visible && l.text.trim()) drawLayer(ctx, l, W, H);
+  }
+}
+/* Hit test: is canvas point (px,py, in backing px) on layer l? */
+function layerHit(l, px, py, cw, ch) {
+  if (!l.visible || !l.text.trim()) return false;
+  const { w, h } = measureLayer(l, cw);
+  const cx = cw * l.xPct / 100, cy = ch * l.yPct / 100;
+  const dx = px - cx, dy = py - cy;
+  const a = -l.rotation * Math.PI / 180;
+  const lx = dx * Math.cos(a) - dy * Math.sin(a);
+  const ly = dx * Math.sin(a) + dy * Math.cos(a);
+  const x0 = l.align === 'center' ? -w / 2 : l.align === 'right' ? -w : 0;
+  return lx >= x0 - 8 && lx <= x0 + w + 8 && ly >= -h / 2 - 8 && ly <= h / 2 + 8;
+}
 
-/* Full-resolution composition: final AI result if extended, else the
-   original placed on the chosen canvas — plus the text overlay. */
-function composeDownload() {
+/* Base composition without text: clean AI result if extended, else the
+   original placed on the chosen canvas. */
+function baseComposition() {
   const c = document.createElement('canvas');
-  if (lastFinal) {
-    c.width = lastFinal.naturalWidth; c.height = lastFinal.naturalHeight;
-    c.getContext('2d').drawImage(lastFinal, 0, 0);
+  if (lastClean) {
+    c.width = lastClean.naturalWidth; c.height = lastClean.naturalHeight;
+    c.getContext('2d').drawImage(lastClean, 0, 0);
   } else {
     const C = currentCanvas();
     c.width = C.tw; c.height = C.th;
-    const x = c.getContext('2d');
-    x.drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
-    drawTextOn(x, C.tw, C.th);
+    c.getContext('2d').drawImage(imgEl, C.ox, C.oy, C.ow, C.oh);
   }
   return c;
 }
+/* Full-resolution export: base + text layers. */
+function composeDownload() {
+  const base = baseComposition();
+  drawLayers(base.getContext('2d'), base.width, base.height);
+  return base;
+}
+/* Small card preview. */
 function drawTextPreview() {
   if (!imgEl) return;
   const src = composeDownload();
@@ -671,8 +708,12 @@ function drawTextPreview() {
   c.width = Math.max(1, Math.round(src.width * s));
   c.height = Math.max(1, Math.round(src.height * s));
   c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  const n = textLayers.length;
+  $('layerCount').textContent = n
+    ? `${n} text layer${n > 1 ? 's' : ''} — open the editor to edit.`
+    : 'No text yet — open the editor to add some.';
 }
-/* Re-burn the current text into the last AI result (after text edits post-extend). */
+/* Re-burn the current layers into the last AI result (after edits post-extend). */
 async function refreshFinal() {
   if (!lastAi) return;
   const fin = await finishResult(lastAi.src);
@@ -681,17 +722,135 @@ async function refreshFinal() {
   $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
   drawTextPreview();
 }
+
+/* ---------- fullscreen editor ---------- */
+function drawEditorCanvas() {
+  const base = baseComposition();
+  const c = $('editorCanvas');
+  const s = Math.min(1, 1600 / Math.max(base.width, base.height));
+  c.width = Math.max(1, Math.round(base.width * s));
+  c.height = Math.max(1, Math.round(base.height * s));
+  const x = c.getContext('2d');
+  x.drawImage(base, 0, 0, c.width, c.height);
+  drawLayers(x, c.width, c.height);
+  const l = sel();
+  if (l && l.visible && l.text.trim()) {
+    const { w, h } = measureLayer(l, c.width);
+    x.save();
+    x.translate(c.width * l.xPct / 100, c.height * l.yPct / 100);
+    x.rotate(l.rotation * Math.PI / 180);
+    x.strokeStyle = '#3b82f6';
+    x.lineWidth = 2;
+    x.setLineDash([8, 5]);
+    const x0 = l.align === 'center' ? -w / 2 : l.align === 'right' ? -w : 0;
+    x.strokeRect(x0 - 10, -h / 2 - 10, w + 20, h + 16);
+    x.restore();
+  }
+}
+async function renderEditor() {
+  if (!imgEl) return;
+  await Promise.all(textLayers.map(l => ensureFont(l.font)));
+  drawEditorCanvas();
+  renderLayerList();
+  syncTools();
+}
 let textRaf = 0;
 function refreshText() {
   cancelAnimationFrame(textRaf);
   textRaf = requestAnimationFrame(async () => {
-    await ensureFont(textState.font);
+    await renderEditor();
     drawTextPreview();
     if (lastAi) await refreshFinal();
   });
 }
+function openEditor() {
+  if (!imgEl) return;
+  $('textEditor').hidden = false;
+  document.body.style.overflow = 'hidden';
+  renderEditor();
+}
+function closeEditor() {
+  $('textEditor').hidden = true;
+  document.body.style.overflow = '';
+  drawTextPreview();
+}
 
-/* ---------- font dropdown ---------- */
+/* ---------- layers list ---------- */
+function moveLayer(i, d) {
+  const j = i + d;
+  if (j < 0 || j >= textLayers.length) return;
+  [textLayers[i], textLayers[j]] = [textLayers[j], textLayers[i]];
+  renderLayerList();
+  drawEditorCanvas();
+}
+function dupLayer(l) {
+  const c = { ...l, id: 't' + (++layerSeq), xPct: Math.min(96, l.xPct + 4), yPct: Math.min(96, l.yPct + 6) };
+  textLayers.push(c);
+  selectedId = c.id;
+  refreshText();
+}
+function delLayer(id) {
+  const i = textLayers.findIndex(l => l.id === id);
+  if (i < 0) return;
+  textLayers.splice(i, 1);
+  if (selectedId === id) selectedId = textLayers.length ? textLayers[Math.min(i, textLayers.length - 1)].id : null;
+  refreshText();
+}
+function renderLayerList() {
+  const list = $('layerList');
+  list.innerHTML = '';
+  $('noLayer').hidden = textLayers.length > 0;
+  $('layerTools').hidden = !sel();
+  for (let i = textLayers.length - 1; i >= 0; i--) {
+    const l = textLayers[i];
+    const row = document.createElement('div');
+    row.className = 'layer-row' + (l.id === selectedId ? ' active' : '');
+    const dot = document.createElement('span');
+    dot.className = 'lr-dot'; dot.style.background = l.color;
+    const tx = document.createElement('span');
+    tx.className = 'lr-text';
+    tx.textContent = l.text.trim() || '(empty)';
+    tx.style.fontFamily = `"${l.font}", sans-serif`;
+    tx.title = 'Select layer';
+    tx.onclick = () => { selectedId = l.id; renderLayerList(); syncTools(); drawEditorCanvas(); };
+    const mkBtn = (t, title, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t; b.title = title;
+      b.onclick = e => { e.stopPropagation(); fn(); };
+      return b;
+    };
+    row.append(dot, tx);
+    row.append(mkBtn('⬆', 'Bring forward', () => moveLayer(i, 1)));
+    row.append(mkBtn('⬇', 'Send backward', () => moveLayer(i, -1)));
+    row.append(mkBtn('⧉', 'Duplicate', () => dupLayer(l)));
+    row.append(mkBtn(l.visible ? '👁' : '🚫', 'Show/hide', () => { l.visible = !l.visible; refreshText(); }));
+    row.append(mkBtn('🗑', 'Delete', () => delLayer(l.id)));
+    list.appendChild(row);
+  }
+}
+
+/* ---------- per-layer tools (edit the selected layer) ---------- */
+function syncTools() {
+  const l = sel();
+  $('layerTools').hidden = !l;
+  if (!l) return;
+  $('edText').value = l.text;
+  $('fontBtnName').textContent = l.font;
+  $('fontBtnSample').style.fontFamily = `"${l.font}", sans-serif`;
+  $('textSize').value = l.sizePct;
+  $('textSizeVal').textContent = l.sizePct.toFixed(1) + '% of width';
+  $('edX').value = l.xPct; $('xVal').textContent = Math.round(l.xPct) + '%';
+  $('edY').value = l.yPct; $('yVal').textContent = Math.round(l.yPct) + '%';
+  $('edRot').value = l.rotation; $('rotVal').textContent = Math.round(l.rotation) + '°';
+  $('alignRow').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.align === l.align));
+  $('textColor').value = l.color;
+  $('swatches').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.title === l.color));
+  $('textBold').checked = l.bold;
+  $('textOutline').checked = l.outline;
+  $('textTrack').value = l.tracking;
+  $('trackVal').textContent = l.tracking + 'px';
+  buildFontList($('fontFilter').value);
+}
 function buildFontList(filter) {
   const list = $('fontList');
   list.innerHTML = '';
@@ -706,7 +865,7 @@ function buildFontList(filter) {
     }
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'font-item' + (f.name === textState.font ? ' active' : '');
+    b.className = 'font-item' + (sel() && f.name === sel().font ? ' active' : '');
     b.setAttribute('role', 'option');
     const ag = document.createElement('span'); ag.className = 'font-ag'; ag.textContent = 'Ag';
     const nm = document.createElement('span'); nm.textContent = f.name;
@@ -722,7 +881,8 @@ function buildFontList(filter) {
   if (!n) list.innerHTML = '<div class="muted small" style="padding:10px">No fonts match.</div>';
 }
 function selectFont(name) {
-  textState.font = name;
+  const l = sel(); if (!l) return;
+  l.font = name;
   $('fontBtnName').textContent = name;
   $('fontBtnSample').style.fontFamily = `"${name}", sans-serif`;
   $('fontDrop').hidden = true;
@@ -732,7 +892,6 @@ function selectFont(name) {
 }
 function initFontPicker() {
   const btn = $('fontBtn'), drop = $('fontDrop'), filter = $('fontFilter');
-  $('fontBtnSample').style.fontFamily = '"Anton", sans-serif';
   buildFontList('');
   btn.onclick = e => {
     e.stopPropagation();
@@ -750,20 +909,52 @@ function initFontPicker() {
   });
 }
 
-/* ---------- text controls ---------- */
-function initTextStudio() {
+function initTextEditor() {
+  // Editor-level Escape first: closes the editor only when the font dropdown is already closed.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('textEditor').hidden && $('fontDrop').hidden) closeEditor();
+  });
   initFontPicker();
-  ensureFont(textState.font); // default ready for first preview
-  $('textLine1').addEventListener('input', e => { textState.line1 = e.target.value; refreshText(); });
-  $('textLine2').addEventListener('input', e => { textState.line2 = e.target.value; refreshText(); });
-  const sizeEl = $('textSize');
-  const sizeLabel = () => { $('textSizeVal').textContent = textState.sizePct.toFixed(1) + '% of width'; };
-  sizeEl.addEventListener('input', () => { textState.sizePct = parseFloat(sizeEl.value); sizeLabel(); refreshText(); });
-  sizeLabel();
-  $('textY').addEventListener('input', e => { textState.yPct = parseFloat(e.target.value); refreshText(); });
+  $('openEditor').onclick = openEditor;
+  $('textCanvas').onclick = openEditor;
+  $('editorDone').onclick = closeEditor;
+  $('editorClose').onclick = closeEditor;
+  $('layerAdd').onclick = () => {
+    addLayer();
+    refreshText();
+    setTimeout(() => { const t = $('edText'); t.focus(); t.select(); }, 80);
+  };
+  $('layerDup').onclick = () => { const l = sel(); if (l) dupLayer(l); };
+  $('layerDel').onclick = () => { if (selectedId) delLayer(selectedId); };
+  $('edText').addEventListener('input', e => { const l = sel(); if (l) { l.text = e.target.value; refreshText(); } });
+  $('textSize').addEventListener('input', e => {
+    const l = sel(); if (!l) return;
+    l.sizePct = parseFloat(e.target.value);
+    $('textSizeVal').textContent = l.sizePct.toFixed(1) + '% of width';
+    refreshText();
+  });
+  $('edX').addEventListener('input', e => {
+    const l = sel(); if (!l) return;
+    l.xPct = parseFloat(e.target.value);
+    $('xVal').textContent = Math.round(l.xPct) + '%';
+    refreshText();
+  });
+  $('edY').addEventListener('input', e => {
+    const l = sel(); if (!l) return;
+    l.yPct = parseFloat(e.target.value);
+    $('yVal').textContent = Math.round(l.yPct) + '%';
+    refreshText();
+  });
+  $('edRot').addEventListener('input', e => {
+    const l = sel(); if (!l) return;
+    l.rotation = parseFloat(e.target.value);
+    $('rotVal').textContent = Math.round(l.rotation) + '°';
+    refreshText();
+  });
   $('alignRow').querySelectorAll('button').forEach(b => {
     b.onclick = () => {
-      textState.align = b.dataset.align;
+      const l = sel(); if (!l) return;
+      l.align = b.dataset.align;
       $('alignRow').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
       refreshText();
     };
@@ -774,25 +965,28 @@ function initTextStudio() {
   sw.forEach(hex => {
     const b = document.createElement('button');
     b.type = 'button'; b.style.background = hex; b.title = hex;
-    b.className = hex === textState.color ? 'active' : '';
     b.onclick = () => {
-      textState.color = hex; colorEl.value = hex;
+      const l = sel(); if (!l) return;
+      l.color = hex; colorEl.value = hex;
       swWrap.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
       refreshText();
     };
     swWrap.appendChild(b);
   });
   colorEl.addEventListener('input', () => {
-    textState.color = colorEl.value;
+    const l = sel(); if (!l) return;
+    l.color = colorEl.value;
     swWrap.querySelectorAll('button').forEach(x => x.classList.toggle('active', false));
     refreshText();
   });
-  $('textBold').addEventListener('change', e => { textState.bold = e.target.checked; refreshText(); });
-  $('textOutline').addEventListener('change', e => { textState.outline = e.target.checked; refreshText(); });
-  const trackEl = $('textTrack');
-  const trackLabel = () => { $('trackVal').textContent = textState.tracking + 'px'; };
-  trackEl.addEventListener('input', () => { textState.tracking = parseInt(trackEl.value, 10); trackLabel(); refreshText(); });
-  trackLabel();
+  $('textBold').addEventListener('change', e => { const l = sel(); if (l) { l.bold = e.target.checked; refreshText(); } });
+  $('textOutline').addEventListener('change', e => { const l = sel(); if (l) { l.outline = e.target.checked; refreshText(); } });
+  $('textTrack').addEventListener('input', e => {
+    const l = sel(); if (!l) return;
+    l.tracking = parseInt(e.target.value, 10);
+    $('trackVal').textContent = l.tracking + 'px';
+    refreshText();
+  });
   $('textDownload').onclick = () => {
     const src = composeDownload();
     const a = document.createElement('a');
@@ -800,5 +994,49 @@ function initTextStudio() {
     a.download = 'jsm-extend-text.png';
     document.body.appendChild(a); a.click(); a.remove();
   };
+  /* Canvas: click a layer to select it, drag to move it. */
+  const ec = $('editorCanvas');
+  let drag = null;
+  const toBacking = e => {
+    const r = ec.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * ec.width / r.width,
+      y: (e.clientY - r.top) * ec.height / r.height,
+    };
+  };
+  ec.addEventListener('pointerdown', e => {
+    const p = toBacking(e);
+    for (let i = textLayers.length - 1; i >= 0; i--) {
+      const l = textLayers[i];
+      if (layerHit(l, p.x, p.y, ec.width, ec.height)) {
+        selectedId = l.id;
+        renderLayerList(); syncTools(); drawEditorCanvas();
+        drag = { id: l.id, dx: p.x - ec.width * l.xPct / 100, dy: p.y - ec.height * l.yPct / 100 };
+        try { ec.setPointerCapture(e.pointerId); } catch (err) {}
+        ec.style.cursor = 'grabbing';
+        e.preventDefault();
+        return;
+      }
+    }
+  });
+  ec.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const l = textLayers.find(x => x.id === drag.id);
+    if (!l) { drag = null; return; }
+    const p = toBacking(e);
+    l.xPct = Math.round((p.x - drag.dx) / ec.width * 100);
+    l.yPct = Math.round((p.y - drag.dy) / ec.height * 100);
+    drawEditorCanvas();
+    $('edX').value = l.xPct; $('xVal').textContent = Math.round(l.xPct) + '%';
+    $('edY').value = l.yPct; $('yVal').textContent = Math.round(l.yPct) + '%';
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null;
+    ec.style.cursor = 'default';
+    refreshText();
+  };
+  ec.addEventListener('pointerup', endDrag);
+  ec.addEventListener('pointercancel', endDrag);
 }
-initTextStudio();
+initTextEditor();

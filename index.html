@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003l">
+<link rel="stylesheet" href="style.css?v=20261003m">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -21,7 +21,7 @@
 {"@type":"Question","name":"Do credits expire?","acceptedAnswer":{"@type":"Answer","text":"Never. Your balance stays in your wallet until you spend it, whether that's tomorrow or next year."}},
 {"@type":"Question","name":"What if the AI fails to generate?","acceptedAnswer":{"@type":"Answer","text":"You keep your credit. Failed generations are refunded automatically — you only ever pay for images you actually receive."}},
 {"@type":"Question","name":"Why don't I need an account?","acceptedAnswer":{"@type":"Answer","text":"Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it."}},
-{"@type":"Question","name":"Can I add text to my image?","acceptedAnswer":{"@type":"Answer","text":"Yes - you can add a two-line title with a choice of popular fonts, colors, size, and position. The text is previewed live and burned into the final image."}}
+{"@type":"Question","name":"Can I add text to my image?","acceptedAnswer":{"@type":"Answer","text":"Yes - step 4 is a full text studio: add as many text lines as you want, each an independent layer with its own font, size, color, position, rotation and style. Drag text right on the image; it burns into the final download."}}
 ]}
 </script>
 </head>
@@ -114,52 +114,81 @@
   <!-- STEP 4 -->
   <section class="card" id="stepText" hidden>
     <h2><span class="step">4</span> Add text <span class="muted small" style="font-weight:400">optional</span></h2>
-    <p class="muted small" style="margin:-6px 0 12px">Design your title here — it is burned into the final image after the AI finishes. Text alone is free, no credit needed.</p>
+    <p class="muted small" style="margin:-6px 0 12px">Add titles to your image — every line is its own layer with its own font, size, color, position and rotation. Text alone is free, no credit needed.</p>
     <div class="size-layout">
       <div class="size-preview">
-        <canvas id="textCanvas"></canvas>
+        <canvas id="textCanvas" class="clickable-canvas" title="Open text editor"></canvas>
       </div>
       <div class="size-controls">
-        <label class="prompt-label" style="margin-top:0">Line 1
-          <input type="text" id="textLine1" maxlength="60" placeholder="FLAMENKO" autocomplete="off">
-        </label>
-        <label class="prompt-label">Line 2
-          <input type="text" id="textLine2" maxlength="60" placeholder="TÜRKÇE" autocomplete="off">
-        </label>
-        <h3 class="ctl-h">Font</h3>
-        <div class="font-picker">
-          <button type="button" id="fontBtn" class="font-btn" aria-haspopup="listbox" aria-expanded="false">
-            <span id="fontBtnSample">Ag</span><span id="fontBtnName">Anton</span><span class="font-caret">▾</span>
-          </button>
-          <div class="font-drop" id="fontDrop" hidden>
-            <input type="text" id="fontFilter" placeholder="🔍 Filter fonts…" autocomplete="off">
-            <div class="font-list" id="fontList" role="listbox"></div>
-          </div>
-        </div>
-        <h3 class="ctl-h">Size <span class="muted small" id="textSizeVal"></span></h3>
-        <input type="range" id="textSize" class="slider" min="4" max="22" step="0.5" value="11">
-        <h3 class="ctl-h">Position</h3>
-        <input type="range" id="textY" class="slider" min="6" max="94" step="1" value="70" aria-label="Vertical position">
-        <div class="align-row" id="alignRow">
-          <button type="button" data-align="left">Left</button>
-          <button type="button" data-align="center" class="active">Center</button>
-          <button type="button" data-align="right">Right</button>
-        </div>
-        <h3 class="ctl-h">Style</h3>
-        <div class="style-row">
-          <input type="color" id="textColor" value="#ffffff" aria-label="Text color">
-          <div class="swatches" id="swatches"></div>
-        </div>
-        <div class="check-row">
-          <label><input type="checkbox" id="textBold" checked> Bold</label>
-          <label><input type="checkbox" id="textOutline" checked> Outline</label>
-        </div>
-        <h3 class="ctl-h">Letter spacing <span class="muted small" id="trackVal"></span></h3>
-        <input type="range" id="textTrack" class="slider" min="0" max="20" step="1" value="2">
-        <button id="textDownload" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:16px">⬇ Download with text</button>
+        <p class="muted" id="layerCount" style="margin:0 0 10px"></p>
+        <button id="openEditor" class="btn btn-primary" style="width:100%;justify-content:center">⛶ Open text editor</button>
+        <button id="textDownload" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px">⬇ Download with text</button>
       </div>
     </div>
   </section>
+
+  <!-- Fullscreen text editor overlay -->
+  <div id="textEditor" class="editor-overlay" hidden>
+    <div class="editor-topbar">
+      <b>✏️ Text editor</b>
+      <div class="editor-topbtns">
+        <button id="editorDone" class="btn btn-primary">Done</button>
+        <button id="editorClose" class="modal-close" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <div class="editor-canvas-wrap"><canvas id="editorCanvas"></canvas></div>
+      <div class="editor-panel">
+        <div class="layers-head"><h3>Layers</h3><button id="layerAdd" class="btn btn-secondary">＋ Add text</button></div>
+        <div id="layerList"></div>
+        <div id="noLayer" class="muted small" style="margin-top:8px">No text layers yet — add one to start.</div>
+        <div id="layerTools" hidden>
+          <label class="prompt-label" style="margin-top:12px">Text
+            <input type="text" id="edText" maxlength="80" autocomplete="off" placeholder="Your text">
+          </label>
+          <h3 class="ctl-h">Font</h3>
+          <div class="font-picker">
+            <button type="button" id="fontBtn" class="font-btn" aria-haspopup="listbox" aria-expanded="false">
+              <span id="fontBtnSample">Ag</span><span id="fontBtnName">Anton</span><span class="font-caret">▾</span>
+            </button>
+            <div class="font-drop" id="fontDrop" hidden>
+              <input type="text" id="fontFilter" placeholder="🔍 Filter fonts…" autocomplete="off">
+              <div class="font-list" id="fontList" role="listbox"></div>
+            </div>
+          </div>
+          <h3 class="ctl-h">Size <span class="muted small" id="textSizeVal"></span></h3>
+          <input type="range" id="textSize" class="slider" min="4" max="22" step="0.5" value="11">
+          <h3 class="ctl-h">Position</h3>
+          <label class="muted small">Horizontal <span id="xVal"></span></label>
+          <input type="range" id="edX" class="slider" min="0" max="100" step="1" value="50">
+          <label class="muted small">Vertical <span id="yVal"></span></label>
+          <input type="range" id="edY" class="slider" min="0" max="100" step="1" value="70">
+          <div class="align-row" id="alignRow">
+            <button type="button" data-align="left">Left</button>
+            <button type="button" data-align="center" class="active">Center</button>
+            <button type="button" data-align="right">Right</button>
+          </div>
+          <h3 class="ctl-h">Rotation <span class="muted small" id="rotVal"></span></h3>
+          <input type="range" id="edRot" class="slider" min="-180" max="180" step="1" value="0">
+          <h3 class="ctl-h">Style</h3>
+          <div class="style-row">
+            <input type="color" id="textColor" value="#ffffff" aria-label="Text color">
+            <div class="swatches" id="swatches"></div>
+          </div>
+          <div class="check-row">
+            <label><input type="checkbox" id="textBold" checked> Bold</label>
+            <label><input type="checkbox" id="textOutline" checked> Outline</label>
+          </div>
+          <h3 class="ctl-h">Letter spacing <span class="muted small" id="trackVal"></span></h3>
+          <input type="range" id="textTrack" class="slider" min="0" max="20" step="1" value="2">
+          <div class="layer-actions">
+            <button id="layerDup" class="btn btn-secondary">⧉ Duplicate</button>
+            <button id="layerDel" class="btn btn-secondary danger-btn">🗑 Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <section class="card" id="features">
     <h2>Why JSM Extend</h2>
@@ -231,7 +260,7 @@
     <details><summary>Why don't I need an account?</summary>
       <p>Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it. Fewer accounts, fewer passwords, less of your data floating around.</p></details>
     <details><summary>Can I add text to my image?</summary>
-      <p>Yes — step 4 lets you add a two-line title with your choice of 29 popular fonts, colors, size, and position. The text is previewed live and burned into the final image. Adding text alone is free; it only uses a credit when you also run the AI extension.</p></details>
+      <p>Yes — step 4 is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text alone is free; it only uses a credit when you also run the AI extension.</p></details>
   </section>
 </main>
 
@@ -290,6 +319,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003l"></script>
+<script src="app.js?v=20261003m"></script>
 </body>
 </html>
