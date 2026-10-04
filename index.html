@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003z">
+<link rel="stylesheet" href="style.css?v=20261004a">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -62,56 +62,78 @@
   </section>
 
   <!-- TOOL TABS -->
-  <div class="tool-tabs" id="toolTabs" hidden>
-    <button class="tool-tab active" data-tool="extend">🖼 Extend</button>
-    <button class="tool-tab" data-tool="sharpen">✨ Sharpen</button>
-  </div>
-
-  <div id="extendPanel">
-  <!-- STEP 2 -->
-  <section class="card" id="stepRatio" hidden>
-    <h2><span class="step">2</span> Choose the new size</h2>
-    <div class="size-layout">
-      <div class="size-preview">
-        <canvas id="previewCanvas"></canvas>
-        <p class="muted" id="previewInfo"></p>
-      </div>
-      <div class="size-controls">
-        <div class="size-rows">
-          <div class="size-row"><span class="muted">Original</span><b id="origSize">–</b></div>
-          <div class="size-row"><span class="muted">New size</span><b id="newSize">–</b></div>
+  <!-- WORKSPACE: jsm-image style — preview left, controls right -->
+  <section id="workspace" hidden>
+    <div class="ws-layout">
+      <div class="card ws-preview-card">
+        <div class="ws-preview">
+          <canvas id="previewCanvas"></canvas>
+          <canvas id="shPreviewCanvas" hidden></canvas>
         </div>
-        <h3 class="ctl-h">Aspect ratio</h3>
-        <div class="ratio-grid" id="ratioGrid"></div>
-        <h3 class="ctl-h">Exact size <span class="muted small">presets</span></h3>
-        <div class="preset-grid" id="presetGrid"></div>
-        <div class="custom-ratio">
-          <label>Custom <input type="number" id="customW" min="16" max="4096" placeholder="W"> × <input type="number" id="customH" min="16" max="4096" placeholder="H"> <span class="muted small">px</span></label>
-          <button id="customApply" class="btn btn-secondary">Apply</button>
+        <div class="sh-infos">
+          <div class="sh-info-row"><span class="muted">Original</span><b id="wsOrig">–</b></div>
+          <div class="sh-info-row"><span class="muted" id="wsNewLabel">New size</span><b id="wsNew">–</b></div>
+          <div class="sh-info-row"><span class="muted">Cost</span><b id="wsCost">1 credit per image</b></div>
+          <p class="muted" id="previewInfo"></p>
+          <p class="muted small sh-note" id="wsNote"></p>
         </div>
-        <p class="muted small err-msg" id="customMsg"></p>
-        <p class="muted small" id="sizeNote"></p>
-        <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
-          <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
-        </label>
+      </div>
+      <div class="card ws-controls-card">
+        <div class="ws-tabs" role="tablist" aria-label="AI tools">
+          <button class="ws-tab active" data-tool="extend" role="tab" aria-selected="true">🖼 Extend</button>
+          <button class="ws-tab" data-tool="sharpen" role="tab" aria-selected="false">✨ Sharpen</button>
+        </div>
+        <div id="wsExtendTab" role="tabpanel">
+          <h3 class="ctl-h" style="margin-top:0">Aspect ratio</h3>
+          <div class="dd" id="ratioDD">
+            <button class="dd-btn" id="ratioDDBtn" aria-haspopup="listbox" aria-expanded="false">
+              <span class="dd-box" id="ratioDDBox"></span><span id="ratioDDLabel">Original</span><span class="dd-caret">▾</span>
+            </button>
+            <div class="dd-menu" id="ratioDDMenu" role="listbox" hidden></div>
+          </div>
+          <div class="dd-hover" id="ratioHover" hidden>
+            <div class="dd-hover-box" id="ratioHoverBox"></div>
+            <span id="ratioHoverLabel"></span>
+          </div>
+          <h3 class="ctl-h">Custom dimensions</h3>
+          <div class="custom-ratio">
+            <label><input type="number" id="customW" min="16" max="4096" placeholder="W"> × <input type="number" id="customH" min="16" max="4096" placeholder="H"> <span class="muted small">px</span></label>
+            <button id="customApply" class="btn btn-secondary">Apply</button>
+          </div>
+          <p class="muted small err-msg" id="customMsg"></p>
+          <h3 class="ctl-h">Social &amp; standard presets</h3>
+          <div class="preset-grid" id="presetGrid"></div>
+          <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
+            <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
+          </label>
+          <p id="costLine" class="muted"></p>
+          <button id="extendBtn" class="btn btn-primary btn-block">✨ Extend image <span class="cost">1 🪙</span></button>
+          <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it&apos;s a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a></p>
+          <p id="extendErr" class="err-msg" hidden></p>
+          <div id="progress" class="progress" hidden>
+            <div class="spinner"></div>
+            <p id="progressText">Painting the new background…</p>
+          </div>
+          <p class="muted small" id="sizeNote"></p>
+        </div>
+        <div id="wsSharpenTab" role="tabpanel" hidden>
+          <div class="sh-row">
+            <span class="muted">Upscale</span>
+            <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
+              <button data-scale="1">1×</button><button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
+            </div>
+          </div>
+          <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
+          <button id="sharpenBtn" class="btn btn-primary btn-block">✨ Sharpen photo <span class="cost">1 🪙</span></button>
+          <p id="shErr" class="err-msg" hidden></p>
+          <div id="shProgress" class="progress" hidden>
+            <div class="spinner"></div>
+            <p>Reconstructing detail…</p>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
-
-  <!-- STEP 3 -->
-  <section class="card" id="stepExtend" hidden>
-    <h2><span class="step">3</span> Extend it</h2>
-    <p id="costLine" class="muted"></p>
-    <div class="extend-row">
-      <button id="extendBtn" class="btn btn-primary">✨ Extend image <span class="cost">1 🪙</span></button>
-    </div>
-    <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it's a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a></p>
-    <p id="extendErr" class="err-msg" hidden></p>
-    <div id="progress" class="progress" hidden>
-      <div class="spinner"></div>
-      <p id="progressText">Painting the new background…</p>
-    </div>
-    <div id="resultWrap" hidden>
+    <div class="card" id="resultWrap" hidden>
       <h3>Result</h3>
       <p class="muted small" id="resultSize"></p>
       <img id="resultImg" alt="Extended image result">
@@ -121,55 +143,7 @@
         <button id="addTextBtn" class="btn btn-secondary">✏ Add text</button>
       </div>
     </div>
-  </section>
-
-  <!-- STEP 4 -->
-  <section class="card" id="stepText" hidden>
-    <h2><span class="step">4</span> Add text <span class="muted small" style="font-weight:400">optional</span></h2>
-    <p class="muted small" style="margin:-6px 0 12px">Add titles to your image — every line is its own layer with its own font, size, color, position and rotation. Text alone is free, no credit needed.</p>
-    <div class="size-layout">
-      <div class="size-preview">
-        <canvas id="textCanvas" class="clickable-canvas" title="Open text editor"></canvas>
-      </div>
-      <div class="size-controls">
-        <p class="muted" id="layerCount" style="margin:0 0 10px"></p>
-        <button id="openEditor" class="btn btn-primary" style="width:100%;justify-content:center">⛶ Open text editor</button>
-        <button id="textDownload" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px">⬇ Download with text</button>
-      </div>
-    </div>
-  </section>
-  </div><!-- /extendPanel -->
-
-  <!-- SHARPEN PANEL -->
-  <section id="sharpenPanel" hidden>
-  <div class="sh-layout">
-    <div class="card sh-preview-card">
-      <div class="sh-preview"><canvas id="shPreviewCanvas"></canvas></div>
-      <div class="sh-infos">
-        <div class="sh-info-row"><span class="muted">Original</span><b id="shInfoOrig">–</b></div>
-        <div class="sh-info-row"><span class="muted">Output</span><b id="shInfoOut">–</b></div>
-        <div class="sh-info-row"><span class="muted">Cost</span><b>1 credit per photo</b></div>
-        <p class="muted small sh-note">AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.</p>
-      </div>
-    </div>
-    <div class="card sh-settings-card">
-      <h3>Sharpen settings</h3>
-      <div class="sh-row">
-        <span class="muted">Upscale</span>
-        <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
-          <button data-scale="1">1×</button><button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
-        </div>
-      </div>
-      <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
-      <button id="sharpenBtn" class="btn btn-primary btn-block">✨ Sharpen photo <span class="cost">1 🪙</span></button>
-      <p id="shErr" class="err-msg" hidden></p>
-      <div id="shProgress" class="progress" hidden>
-        <div class="spinner"></div>
-        <p>Reconstructing detail…</p>
-      </div>
-    </div>
-  </div>
-  <div class="card" id="shResultWrap" hidden>
+    <div class="card" id="shResultWrap" hidden>
       <h3>Result</h3>
       <p class="muted small">Drag the handle to compare before / after</p>
       <div class="ba-wrap" id="baWrap" style="--pos:50%">
@@ -186,6 +160,7 @@
       </div>
     </div>
   </section>
+
 
   <!-- Fullscreen text editor overlay -->
   <div id="textEditor" class="editor-overlay" hidden>
@@ -381,6 +356,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003z"></script>
+<script src="app.js?v=20261004a"></script>
 </body>
 </html>

@@ -149,16 +149,15 @@ fi.onchange = () => { if (fi.files[0]) loadFile(fi.files[0]); };
 function setUploadedImage(im) {
   imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
   lastAi = null; lastFinal = null; lastClean = null; // never carry an old AI result into a new upload
-  $('stepRatio').hidden = false;
-  $('stepExtend').hidden = false;
+  $('workspace').hidden = false;
   $('stepText').hidden = false;
-  $('toolTabs').hidden = false;
-  buildRatioGrid();
+  buildRatioMenu();
   buildPresetGrid();
   selectRatio(RATIOS[0]);
   drawTextPreview();
   drawSharpenPreview();
-  $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  selectTool(activeTool);
+  $('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function loadFile(f) {
   if (!f.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
@@ -178,21 +177,51 @@ async function loadSample() {
 $('sampleBtn').onclick = loadSample;
 
 /* ---------- ratios + preview ---------- */
-function buildRatioGrid() {
-  const g = $('ratioGrid'); g.innerHTML = '';
+/* Aspect-ratio dropdown: proportional mini box per option, enlarged preview on hover. */
+function ratioBoxStyle(rw, rh, max) {
+  const w = rw || imgW || 1, h = rh || imgH || 1;
+  const bw = max, bh = Math.max(8, Math.round(max * h / w));
+  return `style="width:${bw}px;height:${bh}px"`;
+}
+function buildRatioMenu() {
+  const m = $('ratioDDMenu'); m.innerHTML = '';
   RATIOS.forEach(r => {
     const b = document.createElement('button');
-    b.className = 'ratio-btn';
-    b.dataset.label = r.label;
-    const bw = 34, bh = r.rw ? Math.max(10, Math.round(34 * r.rh / r.rw)) : 24;
-    b.innerHTML = `<span class="box" style="width:${bw}px;height:${r.rw ? bh : 24}px"></span><span>${r.label}</span>`;
-    b.onclick = () => selectRatio(r);
-    g.appendChild(b);
+    b.type = 'button'; b.className = 'dd-opt'; b.dataset.label = r.label;
+    b.setAttribute('role', 'option');
+    b.innerHTML = `<span class="dd-box"><i ${ratioBoxStyle(r.rw, r.rh, 30)}></i></span><span>${r.label}</span>`;
+    b.onclick = () => { selectRatio(r); closeRatioMenu(); };
+    b.onmouseenter = () => showRatioHover(r, b);
+    b.onmouseleave = hideRatioHover;
+    m.appendChild(b);
   });
 }
+function toggleRatioMenu(force) {
+  const m = $('ratioDDMenu'), btn = $('ratioDDBtn');
+  const open = force !== undefined ? force : m.hidden;
+  m.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
+  if (!open) hideRatioHover();
+}
+function closeRatioMenu() { toggleRatioMenu(false); }
+function showRatioHover(r, el) {
+  const hov = $('ratioHover');
+  $('ratioHoverBox').innerHTML = `<i ${ratioBoxStyle(r.rw, r.rh, 110)}></i>`;
+  $('ratioHoverLabel').textContent = r.label;
+  hov.hidden = false;
+  const rc = el.getBoundingClientRect();
+  const hw = hov.offsetWidth, hh = hov.offsetHeight;
+  let x = rc.right + 12, y = rc.top + rc.height / 2 - hh / 2;
+  if (x + hw > innerWidth - 12) x = Math.max(12, rc.left - hw - 12);
+  y = Math.max(12, Math.min(y, innerHeight - hh - 12));
+  hov.style.left = x + 'px'; hov.style.top = y + 'px';
+}
+function hideRatioHover() { $('ratioHover').hidden = true; }
 function selectRatio(r) {
   ratio = r; sizeMode = 'ratio';
-  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.label === r.label));
+  document.querySelectorAll('#ratioDDMenu .dd-opt').forEach(b => b.classList.toggle('hot', b.dataset.label === r.label));
+  $('ratioDDLabel').textContent = r.label;
+  $('ratioDDBox').innerHTML = `<i ${ratioBoxStyle(r.rw, r.rh, 26)}></i>`;
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   layout = computeLayout(imgW, imgH, r.rw, r.rh);
   drawPreview();
@@ -215,11 +244,17 @@ function buildPresetGrid() {
 }
 function selectPreset(p) {
   sizeMode = 'exact'; exactW = p.w; exactH = p.h;
-  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+  markRatioCustom(`${p.w.toLocaleString()} × ${p.h.toLocaleString()}`);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', +b.dataset.w === p.w && +b.dataset.h === p.h));
   drawPreview();
   drawTextPreview();
   updateExtendUI();
+}
+/* Dropdown reflects an exact (preset/custom) size instead of a ratio. */
+function markRatioCustom(label) {
+  document.querySelectorAll('#ratioDDMenu .dd-opt').forEach(b => b.classList.remove('hot'));
+  $('ratioDDLabel').textContent = label;
+  $('ratioDDBox').innerHTML = `<i ${ratioBoxStyle(exactW, exactH, 26)}></i>`;
 }
 $('customApply').onclick = () => {
   const msg = $('customMsg'), wEl = $('customW'), hEl = $('customH');
@@ -235,9 +270,9 @@ $('customApply').onclick = () => {
     return;
   }
   msg.textContent = ''; msg.classList.remove('err');
-  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   sizeMode = 'exact'; exactW = Math.min(w, CONFIG.MAX_OUT_SIDE); exactH = Math.min(h, CONFIG.MAX_OUT_SIDE);
+  markRatioCustom(`${exactW.toLocaleString()} × ${exactH.toLocaleString()}`);
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   drawPreview(); drawTextPreview(); updateExtendUI();
 };
 ['customW', 'customH'].forEach(id => $(id).addEventListener('input', e => {
@@ -265,8 +300,8 @@ function drawPreview() {
 
 function updateSizeInfo(C) {
   C = C || currentCanvas();
-  $('origSize').textContent = `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px`;
-  $('newSize').textContent = `${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px`;
+  $('wsOrig').textContent = `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px`;
+  $('wsNew').textContent = `${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px`;
   const extPx = C.tw * C.th - C.ow * C.oh;
   $('previewInfo').textContent = C.none
     ? 'No expansion needed — pick a different size to extend.'
@@ -512,16 +547,38 @@ $('extendBtn').onclick = async () => {
 $('againBtn').onclick = () => { $('extendBtn').click(); }; // another roll, same settings (1 credit)
 $('addTextBtn').onclick = () => { drawTextPreview(); openEditor(); }; // editor opens on the extended result
 
-/* ---------- tool tabs: extend vs sharpen ---------- */
+/* ---------- tool tabs: extend vs sharpen (inside the controls card) ---------- */
 let activeTool = 'extend';
+function syncWsInfo() {
+  const ext = activeTool === 'extend';
+  $('wsNewLabel').textContent = ext ? 'New size' : 'Output';
+  $('wsCost').textContent = ext ? '1 credit per extension' : '1 credit per photo';
+  $('wsNote').innerHTML = ext
+    ? 'The AI paints only the new areas — your original stays pixel-sharp.'
+    : 'AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best.';
+  // extend: drawPreview()->updateSizeInfo() refreshes wsOrig/wsNew + previewInfo right after this
+  if (!ext) $('previewInfo').textContent = 'Dashed frame shows exactly what you will receive.';
+}
 function selectTool(t) {
   activeTool = t;
-  document.querySelectorAll('.tool-tab').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
-  $('extendPanel').hidden = t !== 'extend';
-  $('sharpenPanel').hidden = t !== 'sharpen';
+  document.querySelectorAll('.ws-tab').forEach(b => {
+    const on = b.dataset.tool === t;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  $('wsExtendTab').hidden = t !== 'extend';
+  $('wsSharpenTab').hidden = t !== 'sharpen';
+  $('previewCanvas').hidden = t !== 'extend';
+  $('shPreviewCanvas').hidden = t !== 'sharpen';
+  syncWsInfo();
   if (t === 'sharpen') updateSharpenUI();
+  else { drawPreview(); updateExtendUI(); }
 }
-document.querySelectorAll('.tool-tab').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
+document.querySelectorAll('.ws-tab').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
+/* dropdown open/close */
+$('ratioDDBtn').onclick = e => { e.stopPropagation(); toggleRatioMenu(); };
+document.addEventListener('click', e => { if (!$('ratioDD').contains(e.target)) closeRatioMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRatioMenu(); });
 
 /* ---------- sharpen flow ---------- */
 const SH_MAX_INPUT = 1500; // longest side sent to the model
@@ -541,8 +598,8 @@ function updateSharpenUI() {
   if (!imgEl) return;
   const { w, h } = sharpenInputDims();
   const ow = w * shScale, oh = h * shScale;
-  $('shInfoOrig').textContent = `${w.toLocaleString()} × ${h.toLocaleString()} px`;
-  $('shInfoOut').textContent = shScale === 1
+  $('wsOrig').textContent = `${w.toLocaleString()} × ${h.toLocaleString()} px`;
+  $('wsNew').textContent = shScale === 1
     ? `${ow.toLocaleString()} × ${oh.toLocaleString()} px — AI-enhanced, same size`
     : `${ow.toLocaleString()} × ${oh.toLocaleString()} px`;
   drawSharpenPreview();
