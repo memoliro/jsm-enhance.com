@@ -664,15 +664,18 @@ document.addEventListener('click', e => { if (!$('ratioDD').contains(e.target)) 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRatioMenu(); });
 
 /* ---------- sharpen flow ---------- */
-const SH_MAX_INPUT = 1500; // longest side sent to the model
+const SH_MAX_PIXELS = 2000000; // real-esrgan OOMs above 2096704 total px on this GPU; keep a safety margin
 let shScale = 2;
 let sharpenSrc = null; // { img, w, h } — an extend result; overrides the upload as the sharpen source when set
 function shImg() { return (sharpenSrc && sharpenSrc.img) || imgEl; }
 function shIW() { return (sharpenSrc && sharpenSrc.w) || imgW; }
 function shIH() { return (sharpenSrc && sharpenSrc.h) || imgH; }
 function sharpenInputDims() {
-  const s = Math.min(1, SH_MAX_INPUT / Math.max(shIW(), shIH()));
-  return { w: Math.max(1, Math.round(shIW() * s)), h: Math.max(1, Math.round(shIH() * s)) };
+  // Cap TOTAL pixels, not just the longest side: a 1500x1500 square (2.25M px)
+  // passes a side-cap but blows the GPU memory limit.
+  const s = Math.min(1, Math.sqrt(SH_MAX_PIXELS / (shIW() * shIH())));
+  // floor (not round): rounding w and h independently can land 1px over the cap
+  return { w: Math.max(1, Math.floor(shIW() * s)), h: Math.max(1, Math.floor(shIH() * s)) };
 }
 function sharpenInputDataUrl() {
   const { w, h } = sharpenInputDims();
