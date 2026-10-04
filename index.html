@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004a">
+<link rel="stylesheet" href="style.css?v=20261004b">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -160,6 +160,22 @@
       </div>
     </div>
   </section>
+  <!-- STEP 4 -->
+  <section class="card" id="stepText" hidden>
+    <h2><span class="step">4</span> Add text <span class="muted small" style="font-weight:400">optional</span></h2>
+    <p class="muted small" style="margin:-6px 0 12px">Add titles to your image — every line is its own layer with its own font, size, color, position and rotation. Text alone is free, no credit needed.</p>
+    <div class="size-layout">
+      <div class="size-preview">
+        <canvas id="textCanvas" class="clickable-canvas" title="Open text editor"></canvas>
+      </div>
+      <div class="size-controls">
+        <p class="muted" id="layerCount" style="margin:0 0 10px"></p>
+        <button id="openEditor" class="btn btn-primary" style="width:100%;justify-content:center">⛶ Open text editor</button>
+        <button id="textDownload" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px">⬇ Download with text</button>
+      </div>
+    </div>
+  </section>
+
 
 
   <!-- Fullscreen text editor overlay -->
@@ -356,6 +372,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004a"></script>
+<script src="app.js?v=20261004b"></script>
 </body>
 </html>
