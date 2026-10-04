@@ -150,3 +150,4 @@ html[data-theme="dark"] .banner{background:#422006;color:#fde68a;border-color:#9
 .check-row label{display:flex;align-items:center;gap:6px;cursor:pointer}
 .check-row input{accent-color:var(--primary)}
 #textCanvas{max-width:100%;height:auto;border-radius:12px;border:1px solid var(--border)}
+[hidden]{display:none!important}
