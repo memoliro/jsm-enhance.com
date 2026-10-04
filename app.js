@@ -146,34 +146,42 @@ dz.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') fi.click(); };
 dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
 fi.onchange = () => { if (fi.files[0]) loadFile(fi.files[0]); };
 
+function setUploadedImage(im) {
+  imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
+  lastAi = null; lastFinal = null; lastClean = null; // never carry an old AI result into a new upload
+  $('stepRatio').hidden = false;
+  $('stepExtend').hidden = false;
+  $('stepText').hidden = false;
+  $('toolTabs').hidden = false;
+  buildRatioGrid();
+  buildPresetGrid();
+  selectRatio(RATIOS[0]);
+  drawTextPreview();
+  // sharpen tab preview of the uploaded photo
+  const pc = document.createElement('canvas');
+  const ps = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight));
+  pc.width = Math.max(1, Math.round(im.naturalWidth * ps));
+  pc.height = Math.max(1, Math.round(im.naturalHeight * ps));
+  pc.getContext('2d').drawImage(im, 0, 0, pc.width, pc.height);
+  $('shPreviewImg').src = pc.toDataURL('image/jpeg', 0.85);
+  $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 function loadFile(f) {
   if (!f.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
   const url = URL.createObjectURL(f);
   const im = new Image();
-  im.onload = () => {
-    imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
-    URL.revokeObjectURL(url);
-    lastAi = null; lastFinal = null;
-    $('stepRatio').hidden = false;
-    $('stepExtend').hidden = false;
-    $('stepText').hidden = false;
-    $('toolTabs').hidden = false;
-    buildRatioGrid();
-    buildPresetGrid();
-    selectRatio(RATIOS[0]);
-    drawTextPreview();
-    // sharpen tab preview of the uploaded photo
-    const pc = document.createElement('canvas');
-    const ps = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight));
-    pc.width = Math.max(1, Math.round(im.naturalWidth * ps));
-    pc.height = Math.max(1, Math.round(im.naturalHeight * ps));
-    pc.getContext('2d').drawImage(im, 0, 0, pc.width, pc.height);
-    $('shPreviewImg').src = pc.toDataURL('image/jpeg', 0.85);
-    $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  im.onload = () => { URL.revokeObjectURL(url); setUploadedImage(im); };
   im.onerror = () => alert('Could not read that image.');
   im.src = url;
 }
+async function loadSample() {
+  try {
+    setUploadedImage(await loadImage('samples/sharpen-sample.png'));
+  } catch (e) {
+    alert('Could not load the sample image.');
+  }
+}
+$('sampleBtn').onclick = loadSample;
 
 /* ---------- ratios + preview ---------- */
 function buildRatioGrid() {
