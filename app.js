@@ -1,7 +1,7 @@
 /* JSM Extend — frontend. Set API_BASE to the Cloudflare Worker URL for live mode;
    empty string = demo mode (simulated results, simulated payments). */
 const CONFIG = {
-  API_BASE: '',               // e.g. 'https://jsm-extend-worker.memoli.workers.dev'
+  API_BASE: 'https://jsm-extend-api.memoliro.workers.dev', // live Cloudflare Worker
   FREE_TRIAL_CREDITS: 1,
   PACKS: [ // $5 default; user can pick $10 / $15 (10 credits per $1)
     { id: 'coffee5',  usd: 5,  credits: 50 },
