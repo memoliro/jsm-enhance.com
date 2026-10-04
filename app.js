@@ -162,6 +162,13 @@ function loadFile(f) {
     buildPresetGrid();
     selectRatio(RATIOS[0]);
     drawTextPreview();
+    // sharpen tab preview of the uploaded photo
+    const pc = document.createElement('canvas');
+    const ps = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight));
+    pc.width = Math.max(1, Math.round(im.naturalWidth * ps));
+    pc.height = Math.max(1, Math.round(im.naturalHeight * ps));
+    pc.getContext('2d').drawImage(im, 0, 0, pc.width, pc.height);
+    $('shPreviewImg').src = pc.toDataURL('image/jpeg', 0.85);
     $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   im.onerror = () => alert('Could not read that image.');
