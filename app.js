@@ -267,14 +267,17 @@ function updateSizeInfo(C) {
 }
 
 function updateExtendUI() {
-  const btn = $('extendBtn');
+  const btn = $('extendBtn'), note = $('freeResizeNote');
   if (!imgEl) { btn.disabled = true; return; }
   const C = currentCanvas();
   const needsExt = !C.none;
   btn.disabled = !needsExt;
-  $('costLine').textContent = needsExt
-    ? `This will use 1 credit and deliver ${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px. You have ${balance}.`
-    : 'This size matches your image — no extension needed.';
+  btn.style.display = needsExt ? '' : 'none';
+  note.hidden = needsExt;
+  /* Pay only when the AI invents new pixels. Pure resizes go free to JSM Image. */
+  $('costLine').innerHTML = needsExt
+    ? `This will use 1 credit and deliver ${C.tw.toLocaleString()} × ${C.th.toLocaleString()} px. You have ${balance}. <span class="muted free-alt">Just need a crop instead of AI painting? <a href="https://jsm-image.com" target="_blank" rel="noopener">Free at JSM Image</a></span>`
+    : '';
 }
 
 /* ---------- backends ---------- */
