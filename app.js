@@ -157,13 +157,7 @@ function setUploadedImage(im) {
   buildPresetGrid();
   selectRatio(RATIOS[0]);
   drawTextPreview();
-  // sharpen tab preview of the uploaded photo
-  const pc = document.createElement('canvas');
-  const ps = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight));
-  pc.width = Math.max(1, Math.round(im.naturalWidth * ps));
-  pc.height = Math.max(1, Math.round(im.naturalHeight * ps));
-  pc.getContext('2d').drawImage(im, 0, 0, pc.width, pc.height);
-  $('shPreviewImg').src = pc.toDataURL('image/jpeg', 0.85);
+  drawSharpenPreview();
   $('stepRatio').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function loadFile(f) {
@@ -564,6 +558,25 @@ function updateSharpenUI() {
   foutBox.style.height = Math.max(20, Math.round(bh)) + 'px';
   $('shFinLabel').textContent = `${w}×${h}`;
   $('shFoutLabel').textContent = `${ow}×${oh}`;
+  drawSharpenPreview();
+}
+/* Sharpen preview: the uploaded photo centered inside the output frame,
+   new-pixel area tinted — the same visual language as the Extend preview. */
+function drawSharpenPreview() {
+  if (!imgEl) return;
+  const { w, h } = sharpenInputDims();
+  const ow = w * shScale, oh = h * shScale;
+  const c = $('shPreviewCanvas');
+  const s = Math.min(1, 640 / Math.max(ow, oh));
+  c.width = Math.max(1, Math.round(ow * s));
+  c.height = Math.max(1, Math.round(oh * s));
+  const x = c.getContext('2d');
+  x.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
+  x.globalAlpha = 0.12; x.fillRect(0, 0, c.width, c.height); x.globalAlpha = 1;
+  const iw = w * s, ih = h * s;
+  x.drawImage(imgEl, (c.width - iw) / 2, (c.height - ih) / 2, iw, ih);
+  x.strokeStyle = '#2563eb'; x.setLineDash([6, 4]); x.lineWidth = 2;
+  x.strokeRect(1, 1, c.width - 2, c.height - 2); x.setLineDash([]);
 }
 document.querySelectorAll('#shScaleSeg button').forEach(b => b.onclick = () => {
   shScale = parseInt(b.dataset.scale, 10);
