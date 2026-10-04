@@ -403,7 +403,15 @@ const workerBackend = {
 const backend = DEMO ? mockBackend : workerBackend;
 
 function loadImage(src) {
-  return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+  return new Promise((res, rej) => {
+    const im = new Image();
+    /* Ask for CORS: if the host allows it the canvas stays clean and
+       exportable; data:/blob: sources are unaffected. */
+    im.crossOrigin = 'anonymous';
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('Could not load image'));
+    im.src = src;
+  });
 }
 /* Finish the AI result at the chosen output size: the AI's working-size
    image supplies the painted edges, and the full-resolution original is
@@ -438,6 +446,7 @@ $('extendBtn').onclick = async () => {
   const prompt = $('promptInput').value.trim();
   $('progress').hidden = false;
   $('resultWrap').hidden = true;
+  $('extendErr').hidden = true;
   $('extendBtn').disabled = true;
   try {
     // The server atomically deducts 1 credit; the returned balance is authoritative.
@@ -453,7 +462,13 @@ $('extendBtn').onclick = async () => {
     $('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) {
     if (e.code === 402) { setBalance(0); openModal(); return; } // server says empty
-    alert('Extension failed: ' + (e.message || e) + '\nNo credit was used.');
+    /* Never claim "no credit was used": the debit happens server-side before
+       the AI runs, so only the server knows the truth. Refresh and report it. */
+    await refreshBalance();
+    const err = $('extendErr');
+    err.textContent = 'Extension failed: ' + (e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
+    err.hidden = false;
+    $('resultWrap').hidden = true;
   } finally {
     $('progress').hidden = true;
     updateExtendUI();

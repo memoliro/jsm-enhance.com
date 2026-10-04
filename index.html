@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003o">
+<link rel="stylesheet" href="style.css?v=20261003p">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -97,6 +97,7 @@
     <div class="extend-row">
       <button id="extendBtn" class="btn btn-primary">✨ Extend image <span class="cost">1 🪙</span></button>
     </div>
+    <p id="extendErr" class="err-msg" hidden></p>
     <div id="progress" class="progress" hidden>
       <div class="spinner"></div>
       <p id="progressText">Painting the new background…</p>
@@ -322,6 +323,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003o"></script>
+<script src="app.js?v=20261003p"></script>
 </body>
 </html>

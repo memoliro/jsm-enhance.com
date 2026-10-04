@@ -44,6 +44,16 @@ function randStr(len, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') {
   for (let i = 0; i < len; i++) s += alphabet[buf[i] % alphabet.length];
   return s;
 }
+/* base64 without blowing the call stack on large buffers */
+function b64encode(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(s);
+}
 const makeCode = () => { const s = randStr(12); return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8, 12)}`; };
 const makeToken = () => randStr(32, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
 const clientIp = req => req.headers.get('CF-Connecting-IP') || 'unknown';
@@ -275,9 +285,17 @@ async function handleExtend(req, env) {
   };
   try {
     const url = await replicatePrediction(env, input);
+    /* Fetch the result through the worker and return it as base64. The
+       browser must never draw a cross-origin URL to a canvas: that taints
+       it and toDataURL() throws, losing the user's image after the credit
+       was already spent. A data: URL can never taint. */
+    const imgRes = await fetch(url);
+    if (!imgRes.ok) throw new Error('Could not download the AI result');
+    const buf = await imgRes.arrayBuffer();
+    const ct = imgRes.headers.get('content-type') || 'image/png';
     await env.DB.prepare('INSERT INTO usage_log (created_at, credits_spent) VALUES (?, 1)').bind(Date.now()).run().catch(() => {});
     const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(String(token)).first();
-    return json({ image_url: url, credits: w ? w.credits : 0 });
+    return json({ image_b64: `data:${ct};base64,${b64encode(buf)}`, image_url: url, credits: w ? w.credits : 0 });
   } catch (e) {
     // Refund: the GPU never delivered, so the credit goes back.
     await env.DB.prepare('UPDATE wallets SET credits = credits + 1 WHERE token = ?').bind(String(token)).run().catch(() => {});
