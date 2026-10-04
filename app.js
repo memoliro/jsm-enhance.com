@@ -157,6 +157,7 @@ function loadFile(f) {
     $('stepRatio').hidden = false;
     $('stepExtend').hidden = false;
     $('stepText').hidden = false;
+    $('toolTabs').hidden = false;
     buildRatioGrid();
     buildPresetGrid();
     selectRatio(RATIOS[0]);
@@ -315,6 +316,18 @@ const mockBackend = {
     x.drawImage(src, out.left, out.up, out.w, out.h);
     return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
   },
+  async sharpen(imageDataUrl, scale, faceEnhance, token) {
+    const w = this._wallets();
+    if (!w[token] || w[token] < 1) { const e = new Error('No credits — buy more to continue.'); e.code = 402; throw e; }
+    w[token]--; this._saveW(w); // atomic debit before work
+    await new Promise(r => setTimeout(r, 2200)); // simulate AI latency
+    // Simulated result: plain canvas upscale (soft) — clearly a mock
+    const src = await loadImage(imageDataUrl);
+    const c = document.createElement('canvas');
+    c.width = src.naturalWidth * scale; c.height = src.naturalHeight * scale;
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
+  },
   _issued() { try { return JSON.parse(localStorage.getItem('jsm-extend-mock-issued') || '{}'); } catch { return {}; } },
   _saveIssued(m) { try { localStorage.setItem('jsm-extend-mock-issued', JSON.stringify(m)); } catch {} },
   async redeem(code, token) {
@@ -371,6 +384,15 @@ const workerBackend = {
     });
     const j = await res.json();
     if (!res.ok) { const e = new Error(j.error || 'Extend failed'); e.code = res.status; throw e; }
+    return j;
+  },
+  async sharpen(imageDataUrl, scale, faceEnhance, token) {
+    const res = await fetch(CONFIG.API_BASE + '/api/sharpen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, image: imageDataUrl, scale, face_enhance: faceEnhance }),
+    });
+    const j = await res.json();
+    if (!res.ok) { const e = new Error(j.error || 'Sharpen failed'); e.code = res.status; throw e; }
     return j;
   },
   async redeem(code, token) {
@@ -480,6 +502,103 @@ $('extendBtn').onclick = async () => {
 };
 $('againBtn').onclick = () => { $('extendBtn').click(); }; // another roll, same settings (1 credit)
 $('addTextBtn').onclick = () => { drawTextPreview(); openEditor(); }; // editor opens on the extended result
+
+/* ---------- tool tabs: extend vs sharpen ---------- */
+let activeTool = 'extend';
+function selectTool(t) {
+  activeTool = t;
+  document.querySelectorAll('.tool-tab').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  $('extendPanel').hidden = t !== 'extend';
+  $('sharpenPanel').hidden = t !== 'sharpen';
+  if (t === 'sharpen') updateSharpenUI();
+}
+document.querySelectorAll('.tool-tab').forEach(b => b.onclick = () => selectTool(b.dataset.tool));
+
+/* ---------- sharpen flow ---------- */
+const SH_MAX_INPUT = 1500; // longest side sent to the model
+let shScale = 2;
+function sharpenInputDims() {
+  const s = Math.min(1, SH_MAX_INPUT / Math.max(imgW, imgH));
+  return { w: Math.max(1, Math.round(imgW * s)), h: Math.max(1, Math.round(imgH * s)) };
+}
+function sharpenInputDataUrl() {
+  const { w, h } = sharpenInputDims();
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(imgEl, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.92);
+}
+function updateSharpenUI() {
+  if (!imgEl) return;
+  const { w, h } = sharpenInputDims();
+  $('shSizeLine').textContent =
+    `${imgW.toLocaleString()} × ${imgH.toLocaleString()} px in → ${(w * shScale).toLocaleString()} × ${(h * shScale).toLocaleString()} px out` +
+    (w !== imgW ? ' (input capped for speed)' : '');
+}
+document.querySelectorAll('#shScaleSeg button').forEach(b => b.onclick = () => {
+  shScale = parseInt(b.dataset.scale, 10);
+  document.querySelectorAll('#shScaleSeg button').forEach(x => x.classList.toggle('active', x === b));
+  updateSharpenUI();
+});
+async function runSharpen() {
+  if (!imgEl) return;
+  if (balance < 1) { openModal(); return; } // server re-checks anyway
+  const face = $('shFace').checked;
+  $('shProgress').hidden = false;
+  $('shResultWrap').hidden = true;
+  $('shErr').hidden = true;
+  $('sharpenBtn').disabled = true;
+  try {
+    // The server atomically deducts 1 credit; the returned balance is authoritative.
+    const r = await backend.sharpen(sharpenInputDataUrl(), shScale, face, store.token);
+    setBalance(r.credits);
+    const after = await loadImage(r.image_b64); // data: URL — can never taint
+    const { w, h } = sharpenInputDims();
+    // before image at the same aspect; CSS scales both to the wrap
+    const bc = document.createElement('canvas');
+    bc.width = w; bc.height = h;
+    bc.getContext('2d').drawImage(imgEl, 0, 0, w, h);
+    $('baBeforeImg').src = bc.toDataURL('image/jpeg', 0.9);
+    $('baAfter').src = r.image_b64;
+    $('baWrap').style.setProperty('--pos', '50%');
+    $('shDownloadBtn').href = r.image_b64;
+    $('shDownloadBtn').download = `jsm-sharpen-${after.naturalWidth}x${after.naturalHeight}.png`;
+    $('shResultSize').textContent = `${after.naturalWidth.toLocaleString()} × ${after.naturalHeight.toLocaleString()} px PNG`;
+    $('shResultWrap').hidden = false;
+    $('demoBanner').hidden = !r.mock;
+    $('shResultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    if (e.code === 402) { setBalance(0); openModal(); return; } // server says empty
+    /* Never claim "no credit was used": the debit happens server-side, so
+       only the server knows the truth. Refresh and report it. */
+    await refreshBalance();
+    const err = $('shErr');
+    err.textContent = 'Sharpen failed: ' + (e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
+    err.hidden = false;
+    $('shResultWrap').hidden = true;
+  } finally {
+    $('shProgress').hidden = true;
+    $('sharpenBtn').disabled = false;
+    updateSharpenUI();
+  }
+}
+$('sharpenBtn').onclick = runSharpen;
+$('shAgainBtn').onclick = () => { $('sharpenBtn').click(); }; // another run, same settings (1 credit)
+
+/* before/after compare slider */
+(() => {
+  const wrap = $('baWrap');
+  let drag = false;
+  const setPos = e => {
+    const r = wrap.getBoundingClientRect();
+    const x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
+    wrap.style.setProperty('--pos', x + '%');
+  };
+  wrap.addEventListener('pointerdown', e => { drag = true; wrap.setPointerCapture(e.pointerId); setPos(e); });
+  wrap.addEventListener('pointermove', e => { if (drag) setPos(e); });
+  wrap.addEventListener('pointerup', () => drag = false);
+  wrap.addEventListener('pointercancel', () => drag = false);
+})();
 
 /* ---------- buy + redeem ---------- */
 $('payHint').textContent = DEMO

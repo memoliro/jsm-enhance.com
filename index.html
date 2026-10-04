@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261003s">
+<link rel="stylesheet" href="style.css?v=20261003t">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -39,7 +39,7 @@
 <main class="wrap-app">
   <section class="hero">
     <h1>AI Image Extender</h1>
-    <p class="sub">Upload a photo, pick a new aspect ratio, and AI paints the extended background — no cropping, no stretching. <strong>1 free trial</strong>, then credits via PayPal or card. No account, no subscription.</p>
+    <p class="sub">Upload a photo — <b>extend</b> it with AI outpainting, or <b>sharpen</b> a pixelated shot. <strong>1 free trial</strong>, then 1 credit per AI job via PayPal or card. No account, no subscription.</p>
     <div class="trust-chips">
       <span>✓ No account</span><span>✓ No subscription</span><span>✓ Credits never expire</span><span>✓ Secure payments</span>
     </div>
@@ -60,6 +60,13 @@
     </div>
   </section>
 
+  <!-- TOOL TABS -->
+  <div class="tool-tabs" id="toolTabs" hidden>
+    <button class="tool-tab active" data-tool="extend">🖼 Extend</button>
+    <button class="tool-tab" data-tool="sharpen">✨ Sharpen</button>
+  </div>
+
+  <div id="extendPanel">
   <!-- STEP 2 -->
   <section class="card" id="stepRatio" hidden>
     <h2><span class="step">2</span> Choose the new size</h2>
@@ -127,6 +134,47 @@
         <p class="muted" id="layerCount" style="margin:0 0 10px"></p>
         <button id="openEditor" class="btn btn-primary" style="width:100%;justify-content:center">⛶ Open text editor</button>
         <button id="textDownload" class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:10px">⬇ Download with text</button>
+      </div>
+    </div>
+  </section>
+  </div><!-- /extendPanel -->
+
+  <!-- SHARPEN PANEL -->
+  <section class="card" id="sharpenPanel" hidden>
+    <h2><span class="step">2</span> Sharpen it</h2>
+    <p class="muted">AI reconstruction for pixelated or soft photos. Detail is <b>re-imagined, not recovered</b> — faces come out best. <strong>1 credit</strong> per photo.</p>
+    <div class="sh-options">
+      <div class="sh-row">
+        <span class="muted">Upscale</span>
+        <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
+          <button data-scale="2" class="active">2×</button><button data-scale="4">4×</button>
+        </div>
+      </div>
+      <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
+    </div>
+    <p class="muted small" id="shSizeLine"></p>
+    <div class="extend-row">
+      <button id="sharpenBtn" class="btn btn-primary">✨ Sharpen photo <span class="cost">1 🪙</span></button>
+    </div>
+    <p id="shErr" class="err-msg" hidden></p>
+    <div id="shProgress" class="progress" hidden>
+      <div class="spinner"></div>
+      <p>Reconstructing detail…</p>
+    </div>
+    <div id="shResultWrap" hidden>
+      <h3>Result</h3>
+      <p class="muted small">Drag the handle to compare before / after</p>
+      <div class="ba-wrap" id="baWrap" style="--pos:50%">
+        <img id="baAfter" alt="Sharpened result">
+        <img id="baBeforeImg" class="ba-top" alt="Original">
+        <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+        <span class="ba-tag ba-tag-l">Before</span>
+        <span class="ba-tag ba-tag-r">After</span>
+      </div>
+      <p class="muted small" id="shResultSize"></p>
+      <div class="result-actions">
+        <a id="shDownloadBtn" class="btn btn-primary" download="jsm-sharpen.png">⬇ Download PNG</a>
+        <button id="shAgainBtn" class="btn btn-secondary">↻ Sharpen again <span class="cost">1 🪙</span></button>
       </div>
     </div>
   </section>
@@ -325,6 +373,6 @@
   </div>
 </div>
 
-<script src="app.js?v=20261003s"></script>
+<script src="app.js?v=20261003t"></script>
 </body>
 </html>
