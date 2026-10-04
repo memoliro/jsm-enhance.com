@@ -41,15 +41,19 @@ without memoli — all three require his own accounts.
 
 ## 3. Cloudflare deploy (the server)
 - `npx wrangler login` (his Cloudflare account), then in this folder:
-  - `npx wrangler d1 create jsm-extend-db` → put the database_id in
-    `wrangler.toml`, then `npx wrangler d1 execute jsm-extend-db --file schema.sql`
-  - `npx wrangler secret put REPLICATE_API_TOKEN`
-  - `npx wrangler secret put PAYPAL_CLIENT_ID`
-  - `npx wrangler secret put PAYPAL_CLIENT_SECRET`
+  - `npx wrangler d1 create jsm-extend-db` → copy the database_id into
+    `wrangler.toml` (replacing the PASTE-YOUR-D1-DATABASE-ID-HERE placeholder),
+    then `npx wrangler d1 execute jsm-extend-db --file schema.sql`
+  - `npx wrangler secret put REPLICATE_API_TOKEN` → paste the Replicate token
+  - `npx wrangler secret put PAYPAL_CLIENT_ID` → paste the PayPal Client ID
+  - `npx wrangler secret put PAYPAL_CLIENT_SECRET` → paste the PayPal Secret
   - `npx wrangler secret put STRIPE_SECRET_KEY` (only if taking card payments)
-  - Set vars in `wrangler.toml`: `APP_URL` (the live site URL),
-    `PAYPAL_BASE = https://api-m.paypal.com`
-  - `npx wrangler deploy`
+  - Check `wrangler.toml`: `APP_URL` is the live site URL
+    (default: the GitHub Pages URL — change it if you use a custom domain)
+  - `npx wrangler deploy` → note the worker URL it prints
+    (e.g. `https://jsm-extend-api.<your-name>.workers.dev`)
+- Then set `CONFIG.API_BASE` in `app.js` to that worker URL and redeploy
+  the static site (push the repo). Demo mode turns off automatically.
 - Then set `CONFIG.API_BASE` in `app.js` to the worker URL and redeploy
   the static site. Demo mode turns off automatically.
 
@@ -92,4 +96,4 @@ to 1 free image each — negligible cost); digital-goods chargebacks on $5.
   GitHub Pages, Cloudflare Pages, or his usual static host)
 - `worker.js` — Cloudflare Worker (API + payments + AI)
 - `schema.sql` — D1 tables (codes, orders, usage_log, wallets, trials)
-- `wrangler.toml` — still to create at deploy time (needs his D1 id)
+- `wrangler.toml` — Worker config template (fill in your D1 database_id)

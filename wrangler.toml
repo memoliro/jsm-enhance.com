@@ -1,0 +1,17 @@
+# JSM Extend — Cloudflare Worker config template.
+# Fill in database_id after `npx wrangler d1 create jsm-extend-db`,
+# then run the deploy steps in INTEGRATION.md.
+name = "jsm-extend-api"
+main = "worker.js"
+compatibility_date = "2026-10-03"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jsm-extend-db"
+database_id = "PASTE-YOUR-D1-DATABASE-ID-HERE"
+
+[vars]
+# The live site URL — PayPal/Stripe return here after payment.
+# Change if you move the site to a custom domain.
+APP_URL = "https://memoliro.github.io/jsm-extend/"
+PAYPAL_BASE = "https://api-m.paypal.com"
