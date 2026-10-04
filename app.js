@@ -459,6 +459,7 @@ $('extendBtn').onclick = async () => {
     $('resultSize').textContent = `${fin.w.toLocaleString()} × ${fin.h.toLocaleString()} px PNG`;
     $('resultWrap').hidden = false;
     $('demoBanner').hidden = !r.mock;
+    drawTextPreview(); // step 4 must show the extended image, not the original
     $('resultWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) {
     if (e.code === 402) { setBalance(0); openModal(); return; } // server says empty
@@ -474,7 +475,8 @@ $('extendBtn').onclick = async () => {
     updateExtendUI();
   }
 };
-$('againBtn').onclick = () => { $('resultWrap').hidden = true; lastAi = null; lastFinal = null; drawTextPreview(); updateExtendUI(); };
+$('againBtn').onclick = () => { $('extendBtn').click(); }; // another roll, same settings (1 credit)
+$('addTextBtn').onclick = () => { drawTextPreview(); openEditor(); }; // editor opens on the extended result
 
 /* ---------- buy + redeem ---------- */
 $('payHint').textContent = DEMO
