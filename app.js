@@ -8,8 +8,8 @@ const CONFIG = {
     { id: 'coffee10', usd: 10, credits: 100 },
     { id: 'coffee15', usd: 15, credits: 150 },
   ],
-  MODEL_MAX_SIDE: 1024,       // working resolution cap (long side)
-  MODEL_MAX_EXT: 512,         // max outpaint px per side per call
+  MODEL_MAX_SIDE: 1024,       // (legacy, pre-Bria) working resolution cap
+  BRIA_MAX_SIDE: 2048,        // Bria working canvas cap (long side); Bria natively handles up to 5000
   MAX_OUT_SIDE: 4096,         // final output cap: longest side (px)
   MAX_OUT_PX: 12000000,       // final output cap: total pixels (~12MP, mobile-safe)
 };
@@ -121,19 +121,19 @@ function currentCanvas() {
   return { tw, th, ow, oh, ox, oy, capped, none };
 }
 
-/* Fit everything into model limits; returns working-size layout */
-function workingLayout() {
+/* Working-size layout for Bria Expand: canvas + original placement at working scale.
+   Bria takes the target canvas directly (no per-side outpaint limit), so unlike the
+   old model there is no 512px/side squeeze — just cap the canvas long side. */
+function briaLayout() {
   const C = currentCanvas();
-  let s = Math.min(1, CONFIG.MODEL_MAX_SIDE / Math.max(C.tw, C.th));
-  const m = { left: C.ox, up: C.oy, right: C.tw - C.ox - C.ow, down: C.th - C.oy - C.oh };
-  const maxExt = Math.max(m.left, m.right, m.up, m.down) * s;
-  if (maxExt > CONFIG.MODEL_MAX_EXT && maxExt > 0) s *= CONFIG.MODEL_MAX_EXT / maxExt;
-  const r = v => Math.max(0, Math.round(v * s));
+  const s = Math.min(1, CONFIG.BRIA_MAX_SIDE / Math.max(C.tw, C.th));
+  const rd = v => Math.max(1, Math.round(v * s)); // dims: never 0
+  const rp = v => Math.max(0, Math.round(v * s)); // placement: 0 is valid
   return {
     scale: s,
-    w: r(C.ow), h: r(C.oh),
-    tw: r(C.tw), th: r(C.th),
-    left: r(m.left), right: r(m.right), up: r(m.up), down: r(m.down),
+    imgW: rd(C.ow), imgH: rd(C.oh), // original at working scale
+    cw: rd(C.tw), ch: rd(C.th),     // target canvas at working scale
+    ox: rp(C.ox), oy: rp(C.oy),     // original top-left on the canvas, working px
   };
 }
 
@@ -464,7 +464,8 @@ const workerBackend = {
   async extend(imageDataUrl, out, prompt, token) {
     const res = await fetch(CONFIG.API_BASE + '/api/extend', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, image: imageDataUrl, outpaint: { left: out.left, right: out.right, up: out.up, down: out.down }, prompt }),
+      body: JSON.stringify({ token, image: imageDataUrl,
+        canvas: [out.cw, out.ch], orig_size: [out.imgW, out.imgH], orig_loc: [out.ox, out.oy], prompt }),
     });
     const j = await res.json();
     if (!res.ok) { const e = new Error(j.error || 'Extend failed'); e.code = res.status; throw e; }
@@ -560,10 +561,10 @@ async function finishResult(aiSrc) {
   lastFinal = await loadImage(url);
   return { url, w: C.tw, h: C.th };
 }
-function workingImageDataUrl(out) {
+function briaImageDataUrl(out) {
   const c = document.createElement('canvas');
-  c.width = out.w; c.height = out.h;
-  c.getContext('2d').drawImage(imgEl, 0, 0, out.w, out.h);
+  c.width = out.imgW; c.height = out.imgH;
+  c.getContext('2d').drawImage(imgEl, 0, 0, out.imgW, out.imgH);
   return c.toDataURL('image/jpeg', 0.92);
 }
 
@@ -572,7 +573,7 @@ $('extendBtn').onclick = async () => {
   if (!imgEl || currentCanvas().none) return;
   const need = $('chainSharpen').checked ? 2 : 1; // extend + optional chained enhance
   if (balance < need) { openModal(); return; }
-  const out = workingLayout();
+  const out = briaLayout();
   const prompt = $('promptInput').value.trim();
   $('progress').hidden = false;
   $('resultWrap').hidden = true;
@@ -580,7 +581,7 @@ $('extendBtn').onclick = async () => {
   $('extendBtn').disabled = true;
   try {
     // The server atomically deducts 1 credit; the returned balance is authoritative.
-    const r = await backend.extend(workingImageDataUrl(out), out, prompt, store.token);
+    const r = await backend.extend(briaImageDataUrl(out), out, prompt, store.token);
     setBalance(r.credits);
     const fin = await finishResult(r.image_b64 || r.image_url);
     $('resultImg').src = fin.url;

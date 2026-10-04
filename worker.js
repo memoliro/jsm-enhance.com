@@ -12,14 +12,16 @@
  *   GET  /api/balance?token=...    -> {credits}
  *   POST /api/paypal/create-order   {pack} -> {approval_url}
  *   POST /api/paypal/capture        {orderId} -> {code}
- *   POST /api/extend      {token, image, outpaint, prompt} -> {image_url, credits}
+ *   POST /api/extend      {token, image, canvas, orig_size, orig_loc, prompt} -> {image_url, credits}
+ *                         (Bria Expand: canvas_size + original placement; $0.04/run)
  *   POST /api/sharpen     {token, image, scale, face_enhance} -> {image_url, credits}
  *
  * Bindings: DB (D1). Secrets: REPLICATE_API_TOKEN, PAYPAL_CLIENT_ID,
- * PAYPAL_CLIENT_SECRET. Vars: PAYPAL_BASE, APP_URL, REPLICATE_MODEL_VERSION.
+ * PAYPAL_CLIENT_SECRET. Vars: PAYPAL_BASE, APP_URL.
  */
 
-const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804'; // fermatresearch/sdxl-outpainting-lora — verify current before prod
+// (legacy) fermatresearch/sdxl-outpainting-lora — replaced by bria/expand-image, Oct 2026
+const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804';
 const SHARPEN_VERSION = 'b3ef194191d13140337468c916c2c5b96dd0cb06dffc032a022a31807f6a5ea8'; // nightmareai/real-esrgan — restoration + upscale
 /* Tiered pricing. Credits are ALWAYS derived from the amount the payment
    provider reports (PayPal capture amount / Stripe amount_total) — never from
@@ -241,8 +243,14 @@ async function handleStripeVerify(req, env) {
 }
 
 /* ---------- extend via Replicate (credit-gated) ---------- */
-async function replicatePrediction(env, version, input) {
-  const create = await fetch('https://api.replicate.com/v1/predictions', {
+// target: { version } for a pinned model version, or { model } for an official
+// model endpoint (always the latest official release, no hash to pin).
+async function replicateRun(env, target, input) {
+  const endpoint = target.model
+    ? `https://api.replicate.com/v1/models/${target.model}/predictions`
+    : 'https://api.replicate.com/v1/predictions';
+  const body = target.model ? { input } : { version: target.version, input };
+  const create = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Authorization': `Token ${env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ version, input }),
@@ -295,32 +303,27 @@ async function fetchImageAsDataUrl(url) {
 /* ---------- extend via Replicate (credit-gated) ---------- */
 async function handleExtend(req, env) {
   if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
-  const { token, image, outpaint, prompt } = await req.json().catch(() => ({}));
-  if (!image || !outpaint) return json({ error: 'Missing image or outpaint params' }, 400);
+  const { token, image, canvas, orig_size, orig_loc, prompt } = await req.json().catch(() => ({}));
+  if (!image || !canvas) return json({ error: 'Missing image or canvas params' }, 400);
+  const cw = canvas[0] | 0, ch = canvas[1] | 0;
+  if (cw < 16 || ch < 16 || cw > 5000 || ch > 5000) return json({ error: 'Bad canvas size' }, 400);
 
   // curl without a token, or with an empty wallet, cannot reach the GPU.
   if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
 
+  // Bria Expand: purpose-built expander. Canvas mode places our image on the
+  // target canvas and generates the surroundings; $0.04/run, ~7s.
   const input = {
     image,
-    prompt: (prompt || '').slice(0, 200) || 'seamless photographic extension of the image, continue the scene naturally in every direction, matching lighting, color grading, style, perspective and depth of field, invisible boundaries',
-    negative_prompt: 'visible seam, hard edge, border, frame, watermark, text, logo, distorted anatomy, deformed face, duplicated features, blurry, low quality, oversized objects',
-    outpaint_left: Math.min(512, outpaint.left | 0),
-    outpaint_right: Math.min(512, outpaint.right | 0),
-    outpaint_up: Math.min(512, outpaint.up | 0),
-    outpaint_down: Math.min(512, outpaint.down | 0),
-    // Quality tuning (verified against the a542ccf3 input schema):
-    // - condition_scale 0.35 (default 0.15): stronger ControlNet guidance from the
-    //   original image -> cleaner boundaries, fewer visible seams. Free (no extra runtime).
-    // - guidance_scale 8 (default 7.5): slightly stronger prompt adherence.
-    // NOTE: this model exposes no num_inference_steps knob.
-    condition_scale: 0.35,
-    guidance_scale: 8,
-    apply_watermark: false,
-    num_outputs: 1,
+    canvas_size: [cw, ch],
+    original_image_size: [orig_size[0] | 0, orig_size[1] | 0],
+    original_image_location: [orig_loc[0] | 0, orig_loc[1] | 0],
+    aspect_ratio: 'none',
+    prompt: (prompt || '').slice(0, 500) || 'seamless photographic extension, continue the scene naturally in every direction, matching lighting, color grading, style and perspective',
+    negative_prompt: 'visible seam, distorted, watermark, text, low quality',
   };
   try {
-    const url = await replicatePrediction(env, env.REPLICATE_MODEL_VERSION || REPLICATE_VERSION, input);
+    const url = await replicateRun(env, { model: 'bria/expand-image' }, input);
     const image_b64 = await fetchImageAsDataUrl(url);
     await logUsage(env);
     return json({ image_b64, image_url: url, credits: await walletCredits(env, token) });
@@ -341,9 +344,9 @@ async function handleSharpen(req, env) {
   if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
 
   try {
-    const url = await replicatePrediction(
+    const url = await replicateRun(
       env,
-      env.REPLICATE_SHARPEN_VERSION || SHARPEN_VERSION,
+      { version: env.REPLICATE_SHARPEN_VERSION || SHARPEN_VERSION },
       { image, scale: sc, face_enhance: !!face_enhance }
     );
     const image_b64 = await fetchImageAsDataUrl(url);
