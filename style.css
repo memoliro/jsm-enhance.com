@@ -284,13 +284,6 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
   font-size:1.25rem;font-weight:750;letter-spacing:-0.02em;
   display:flex;align-items:center;gap:10px;
 }
-.step{
-  background:var(--text);color:var(--card);
-  width:30px;height:30px;border-radius:50%;
-  display:inline-flex;align-items:center;justify-content:center;
-  font-size:.85rem;font-weight:800;flex:none;
-}
-html[data-theme="dark"] .step{background:#fff;color:#0b0e14}
 
 .muted{color:var(--muted)}
 .small{font-size:.84rem}
