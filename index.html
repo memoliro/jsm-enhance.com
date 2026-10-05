@@ -165,7 +165,7 @@
     position: absolute;
     top: 14px;
     z-index: 6;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -173,13 +173,16 @@
     backdrop-filter: blur(6px);
     color: #fff;
     border-radius: 999px;
-    padding: 8px 15px;
+    padding: 7px 13px;
     pointer-events: none;
   }
   #extendDemo .ba-tag-before { left: 12px; }
   #extendDemo .ba-tag-after { right: 12px; }
   /* side-by-side demo duo */
-  #extendDemo .ba-duo { display:flex; gap:18px; align-items:center; max-width:1280px; margin:0 auto; }
+  #extendDemo .ba-duo { display:flex; gap:18px; align-items:center; margin:0 auto; }
+  @media (min-width:1350px){
+    #extendDemo{ width:calc(100% + 220px); max-width:1400px; margin-left:-110px; margin-right:-110px; }
+  }
   #extendDemo .ba-duo > div { flex:1 1 0; min-width:0; }
   #extendDemo .ba-duo .ba-slider { max-width:none; margin:0; }
   #extendDemo .ba-cap { text-align:center; color:#667085; font-size:.85rem; margin:10px 0 0; }
