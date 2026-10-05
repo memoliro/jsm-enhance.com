@@ -39,17 +39,29 @@
     </nav>
     <div class="header-right">
       <button id="creditsPill" class="credits-pill" title="Your credits">🪙 <span id="creditsCount">–</span></button>
-      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">🌙 <span>Dark</span></button>
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
     </div>
   </div>
 </header>
 
 <main class="wrap-app">
   <section class="hero">
-    <h1>AI Image Enhancer</h1>
-    <p class="sub">Upload a photo — <b>extend</b> it, <b>sharpen</b> it, or <b>unblur</b> it with AI. <strong>1 free trial</strong>, then 1 credit per AI job via PayPal or card. No account, no subscription.</p>
+    <div class="hero-badge"><i>✨ NEW</i> Sharpen & Unblur now live — same credits</div>
+    <h1>Make any photo <span class="grad">perfect</span><br>with one click</h1>
+    <p class="sub">Upload a photo — <b>extend</b> it beyond its edges, <b>sharpen</b> blurry details, or <b>unblur</b> shaky shots with AI. <strong>1 free trial</strong>, then 1 credit per job. No account, no subscription, ever.</p>
     <div class="trust-chips">
-      <span>✓ No account</span><span>✓ No subscription</span><span>✓ Credits never expire</span><span>✓ Secure payments</span>
+      <span>✓ No account</span><span>✓ No subscription</span><span>✓ Credits never expire</span><span>✓ Private — nothing stored</span>
+    </div>
+
+    <div class="hero-visual hero-ba" aria-hidden="false">
+      <div class="ba-wrap hero-ba-wrap" id="heroBaWrap" style="--pos:58%">
+        <img id="heroAfter" src="./img/new-hero-sharp.png" alt="After">
+        <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-20pct.png" alt="Before">
+        <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+        <span class="ba-tag ba-tag-l">BEFORE</span>
+        <span class="ba-tag ba-tag-r">AFTER</span>
+      </div>
+    </div>
     </div>
   </section>
 
@@ -61,16 +73,15 @@
     <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload an image">
       <div class="dz-inner">
         <div class="dz-icon">📤</div>
-        <p><b>Drag &amp; drop</b> an image here, or <b>browse</b></p>
-        <p class="muted">JPG, PNG, WebP — stays in your browser until you extend</p>
+        <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.08rem;font-weight:700;letter-spacing:-0.01em"><b>Drop your image here</b></p>
+        <p class="muted">or click to browse · JPG, PNG, WebP — stays in your browser until you run AI</p>
       </div>
       <input type="file" id="fileInput" accept="image/*" hidden>
     </div>
-    <p class="muted" style="text-align:center;margin-top:10px">No photo handy? <button id="sampleBtn" class="btn btn-secondary">🖼 Try a sample photo</button></p>
+    <p class="muted" style="text-align:center;margin-top:14px;font-size:.9rem">No photo handy? <button id="sampleBtn" class="btn btn-secondary" style="padding:8px 14px;border-radius:999px">🖼 Try a sample</button></p>
   </section>
 
-  <!-- TOOL TABS -->
-  <!-- WORKSPACE: jsm-image style — preview left, controls right -->
+  <!-- WORKSPACE -->
   <section id="workspace" hidden>
     <div class="ws-layout">
       <div class="card ws-preview-card">
@@ -80,16 +91,16 @@
           <canvas id="textCanvas" class="clickable-canvas" title="Open text editor" hidden></canvas>
         </div>
         <div class="ws-preview-actions">
-          <button id="replaceImgBtn" class="btn btn-secondary">Replace image</button>
-          <button id="showOrigBtn" class="btn btn-secondary">Show original</button>
-          <button id="showPlanBtn" class="btn btn-primary">Show planned</button>
-          <button id="sharpenResultBtn" class="btn btn-primary" hidden>✨ Sharpen this result <span class="cost">1 🪙</span></button>
+          <button id="replaceImgBtn" class="btn btn-secondary">Replace</button>
+          <button id="showOrigBtn" class="btn btn-secondary">Original</button>
+          <button id="showPlanBtn" class="btn btn-secondary">Planned</button>
+          <button id="sharpenResultBtn" class="btn btn-primary" hidden>✨ Sharpen <span class="cost">1 🪙</span></button>
         </div>
         <div class="sh-infos">
           <div class="sh-info-row"><span class="muted">Original</span><b id="wsOrig">–</b></div>
           <div class="sh-info-row"><span class="muted" id="wsNewLabel">New size</span><b id="wsNew">–</b></div>
           <div class="sh-info-row"><span class="muted">Cost</span><b id="wsCost">1 credit per image</b></div>
-          <p class="muted" id="previewInfo"></p>
+          <p class="muted" id="previewInfo" style="font-size:.88rem"></p>
           <p class="muted small sh-note" id="wsNote"></p>
         </div>
       </div>
@@ -114,18 +125,18 @@
           <p class="muted small err-msg" id="customMsg"></p>
           <h3 class="ctl-h">Social &amp; standard presets</h3>
           <div class="preset-grid" id="presetGrid"></div>
-          <label class="prompt-label">Describe the scene <span class="muted">(optional — helps the AI)</span>
+          <label class="prompt-label">Describe the scene <span class="muted" style="font-weight:400">(optional — helps AI)</span>
             <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
           </label>
           <div class="chain-row">
-            <label class="sh-check"><input type="checkbox" id="chainSharpen"> ✨ Also enhance the result <span class="muted small">+1 credit</span></label>
+            <label class="sh-check"><input type="checkbox" id="chainSharpen"> ✨ Also enhance result <span class="muted small">+1 credit</span></label>
             <div class="seg" id="chainScaleSeg" role="group" aria-label="Chained enhance scale" hidden>
               <button data-scale="1" class="active">1×</button><button data-scale="2">2×</button><button data-scale="4">4×</button>
             </div>
           </div>
-          <p id="costLine" class="muted"></p>
+          <p id="costLine" class="muted small"></p>
           <button id="extendBtn" class="btn btn-primary btn-block"><span id="extendBtnLabel">✨ Extend image</span> <span class="cost">1 🪙</span></button>
-          <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it&apos;s a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a>, or you may want to <a href="#" data-goto-tool="sharpen">Sharpen</a>.</p>
+          <p id="freeResizeNote" class="free-note" hidden>✂️ Good news — this size needs no AI work, it's a plain resize. <a href="https://jsm-image.com" target="_blank" rel="noopener">Do it free at JSM Image →</a>, or you may want to <a href="#" data-goto-tool="sharpen">Sharpen</a>.</p>
           <p id="extendErr" class="err-msg" hidden></p>
           <div id="progress" class="progress" hidden>
             <div class="spinner"></div>
@@ -135,12 +146,12 @@
         </div>
         <div id="wsSharpenTab" role="tabpanel" hidden>
           <div class="sh-row">
-            <span class="muted">Upscale</span>
+            <span class="muted" style="font-weight:600">Upscale</span>
             <div class="seg" id="shScaleSeg" role="group" aria-label="Upscale factor">
               <button data-scale="1" class="active">1×</button><button data-scale="2">2×</button><button data-scale="4">4×</button>
             </div>
           </div>
-          <label class="sh-check"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
+          <label class="sh-check" style="margin-top:14px"><input type="checkbox" id="shFace"> Face enhance <span class="muted small">better for portraits</span></label>
           <button id="sharpenBtn" class="btn btn-primary btn-block">✨ Sharpen photo <span class="cost">1 🪙</span></button>
           <p id="shErr" class="err-msg" hidden></p>
           <div id="shProgress" class="progress" hidden>
@@ -165,7 +176,7 @@
       </div>
     </div>
     <div class="card" id="resultWrap" hidden>
-      <h3>Extend Result</h3>
+      <h3>Result</h3>
       <p class="muted small">Drag the handle to compare before / after</p>
       <div class="ba-wrap" id="baWrapEx" style="--pos:50%">
         <img id="baAfterEx" alt="Extended image result">
@@ -176,60 +187,54 @@
       </div>
       <p class="muted small" id="resultSize"></p>
       <div class="result-actions">
-        <a id="downloadBtn" class="btn btn-primary" download="jsm-enhance.png">⬇ Download PNG</a>
-        <button id="againBtn" class="btn btn-secondary">↻ Regenerate <span class="cost">1 🪙</span></button>
-        <button id="addTextBtn" class="btn btn-secondary">✏ Add text</button>
+        <a id="downloadBtn" class="btn btn-primary" download="jsm-extended.jpg">⬇ Download</a>
+        <button id="sharpenThisBtn" class="btn btn-secondary">✨ Sharpen this</button>
+        <button id="newImageBtn" class="btn btn-secondary">New image</button>
       </div>
     </div>
     <div class="card" id="shResultWrap" hidden>
       <h3>Sharpen Result</h3>
-      <p class="muted small">Drag the handle to compare before / after</p>
-      <div class="ba-wrap" id="baWrap" style="--pos:50%">
-        <img id="baAfter" alt="Sharpened result">
-        <img id="baBeforeImg" class="ba-top" alt="Original">
+      <div class="ba-wrap" id="baWrapSh" style="--pos:50%">
+        <img id="baAfterSh" alt="Sharpened result">
+        <img id="baBeforeSh" class="ba-top" alt="Original">
         <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
         <span class="ba-tag ba-tag-l">Before</span>
         <span class="ba-tag ba-tag-r">After</span>
       </div>
-      <p class="muted small" id="shResultSize"></p>
       <div class="result-actions">
-        <a id="shDownloadBtn" class="btn btn-primary" download="jsm-sharpen.png">⬇ Download PNG</a>
-        <button id="shAgainBtn" class="btn btn-secondary">↻ Sharpen again <span class="cost">1 🪙</span></button>
+        <a id="shDownloadBtn" class="btn btn-primary" download="jsm-sharpened.jpg">⬇ Download</a>
+        <button id="shNewBtn" class="btn btn-secondary">New image</button>
       </div>
     </div>
     <div class="card" id="unResultWrap" hidden>
       <h3>Unblur Result</h3>
-      <p class="muted small">Drag the handle to compare before / after</p>
       <div class="ba-wrap" id="baWrapUn" style="--pos:50%">
-        <img id="baAfterUn" alt="Deblurred result">
+        <img id="baAfterUn" alt="Unblurred result">
         <img id="baBeforeUn" class="ba-top" alt="Original">
         <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
         <span class="ba-tag ba-tag-l">Before</span>
         <span class="ba-tag ba-tag-r">After</span>
       </div>
-      <p class="muted small" id="unResultSize"></p>
       <div class="result-actions">
-        <a id="unDownloadBtn" class="btn btn-primary" download="jsm-unblur.png">⬇ Download PNG</a>
-        <button id="unAgainBtn" class="btn btn-secondary">↻ Unblur again <span class="cost">1 🪙</span></button>
+        <a id="unDownloadBtn" class="btn btn-primary" download="jsm-unblurred.jpg">⬇ Download</a>
+        <button id="unNewBtn" class="btn btn-secondary">New image</button>
       </div>
     </div>
   </section>
 
-
-
-  <!-- Fullscreen text editor overlay -->
-  <div id="textEditor" class="editor-overlay" hidden>
+  <div id="textEditorOverlay" class="editor-overlay" hidden>
     <div class="editor-topbar">
-      <b>✏️ Text editor</b>
+      <b style="font-family:'Plus Jakarta Sans',sans-serif">✏ Text Studio — Free</b>
       <div class="editor-topbtns">
-        <button id="editorDone" class="btn btn-primary">Done</button>
-        <button id="editorClose" class="modal-close" aria-label="Close">✕</button>
+        <button id="editorReset" class="btn btn-secondary" style="padding:8px 12px">Reset</button>
+        <button id="editorDone" class="btn btn-primary" style="padding:8px 14px">Done</button>
+        <button id="editorClose" class="modal-close" style="position:static" aria-label="Close">✕</button>
       </div>
     </div>
     <div class="editor-body">
       <div class="editor-canvas-wrap"><canvas id="editorCanvas"></canvas></div>
       <div class="editor-panel">
-        <div class="layers-head"><h3>Layers</h3><button id="layerAdd" class="btn btn-secondary">＋ Add text</button></div>
+        <div class="layers-head"><h3>Layers</h3><button id="layerAdd" class="btn btn-secondary" style="padding:7px 12px;border-radius:999px">＋ Add</button></div>
         <div id="layerList"></div>
         <div id="noLayer" class="muted small" style="margin-top:8px">No text layers yet — add one to start.</div>
         <div id="layerTools" hidden>
@@ -283,54 +288,55 @@
 </main>
 <div class="wrap-landing">
   <section class="card" id="features">
-    <h2>Why JSM Enhance</h2>
+    <h2>Why creators love JSM Enhance</h2>
     <div class="features-grid">
-      <div class="feature"><div class="f-icon">🔒</div><h3>No account needed</h3><p>Pay, get a code, extend. We never ask for your name or email.</p></div>
-      <div class="feature"><div class="f-icon">🪙</div><h3>Pay per use</h3><p>No subscription, no hidden fees. $5 gets you 50 images — and credits never expire.</p></div>
-      <div class="feature"><div class="f-icon">🖼️</div><h3>Your photo stays intact</h3><p>The AI only paints new pixels around the edges. Your original is never cropped or altered.</p></div>
-      <div class="feature"><div class="f-icon">🛡️</div><h3>Secure by design</h3><p>Credits live in a server-side wallet, and failed generations are refunded automatically.</p></div>
+      <div class="feature"><div class="f-icon">🔒</div><h3>No account needed</h3><p>Pay, get a code, enhance. We never ask for your name or email. Your wallet lives in your browser.</p></div>
+      <div class="feature"><div class="f-icon">⚡</div><h3>Pay per use, not per month</h3><p>No subscription, no hidden fees. $5 gets you 50 images — and credits never expire. Use them next year if you want.</p></div>
+      <div class="feature"><div class="f-icon">🎯</div><h3>Your photo stays intact</h3><p>The AI only paints new pixels around the edges. Your original is never cropped, stretched or altered. Honest AI.</p></div>
+      <div class="feature"><div class="f-icon">🛡️</div><h3>Private by design</h3><p>Images are processed for seconds then discarded. Credits live in a secure server wallet, and failed jobs are auto-refunded.</p></div>
     </div>
   </section>
 
   <section class="card" id="usecases">
-    <h2>Made for</h2>
+    <h2>Made for real work</h2>
     <div class="use-grid">
-      <span>📱 Social posts → Stories</span>
+      <span>📱 Social → Stories</span>
       <span>🖥️ Wallpapers</span>
-      <span>🖨️ Prints &amp; posters</span>
-      <span>🏠 Real estate photos</span>
+      <span>🖨️ Prints & posters</span>
+      <span>🏠 Real estate</span>
       <span>🛒 Product shots</span>
-      <span>🎨 Thumbnails &amp; banners</span>
-      <span>🕰️ Refreshing old memories</span>
-      <span>📸 Hobbyist photographers</span>
-      <span>🖼️ Enlarging old photos for print</span>
-      <span>👪 Family photo restoration</span>
+      <span>🎨 Thumbnails</span>
+      <span>🕰️ Old memories</span>
+      <span>📸 Photographers</span>
+      <span>👪 Family restoration</span>
+      <span>🎬 YouTube banners</span>
     </div>
   </section>
 
   <section class="card" id="pricing">
-    <h2>Simple pricing</h2>
-    <p class="muted">One free trial to start. Then pay per use — 1 credit = 1 image.</p>
+    <div style="text-align:center;max-width:560px;margin:0 auto 6px">
+      <h2 style="justify-content:center">Simple pricing</h2>
+      <p class="muted">One free trial to start. Then pay per use — 1 credit = 1 Extend, Sharpen or Unblur. Same wallet, all tools.</p>
+    </div>
     <div class="pricing-grid">
       <div class="price-card">
         <div class="p-amount">$5</div>
-        <div class="p-credits">50 credits</div>
-        <button class="btn btn-primary" onclick="openModalWithPack('coffee5')">Get 50 credits</button>
+        <div class="p-credits">50 credits · $0.10 each</div>
+        <button class="btn btn-secondary" style="width:100%" onclick="openModalWithPack('coffee5')">Get 50 credits</button>
       </div>
-      <div class="price-card">
+      <div class="price-card popular">
         <div class="p-amount">$10</div>
-        <div class="p-credits">100 credits</div>
-        <button class="btn btn-primary" onclick="openModalWithPack('coffee10')">Get 100 credits</button>
+        <div class="p-credits">100 credits · best value</div>
+        <button class="btn btn-primary" style="width:100%" onclick="openModalWithPack('coffee10')">Get 100 credits</button>
       </div>
       <div class="price-card">
         <div class="p-amount">$15</div>
-        <div class="p-credits">150 credits</div>
-        <button class="btn btn-primary" onclick="openModalWithPack('coffee15')">Get 150 credits</button>
+        <div class="p-credits">150 credits · $0.10 each</div>
+        <button class="btn btn-secondary" style="width:100%" onclick="openModalWithPack('coffee15')">Get 150 credits</button>
       </div>
     </div>
-    <p class="muted small pricing-note">Credits never expire · No subscription · Pay with PayPal or card</p>
+    <p class="muted small pricing-note">Credits never expire · No subscription · Pay with PayPal or card · Instant code delivery</p>
   </section>
-
 
   <section class="card faq" id="faq">
     <h2>Frequently asked questions</h2>
@@ -362,9 +368,9 @@
       <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend, Sharpen or Unblur.</p></details>
 </section>
   <section class="card support-card">
-    <h2>Support the site</h2>
-    <p class="muted">JSM Enhance stays free to try. If it helps, you can buy a coffee.</p>
-    <a href="https://www.buymeacoffee.com/memoliro" target="_blank" rel="noopener" class="btn btn-coffee">☕ Buy me a coffee</a>
+    <h2 style="justify-content:center">Support the site</h2>
+    <p class="muted">JSM Enhance stays free to try. If it helps your work, you can buy a coffee — it keeps the servers running.</p>
+    <a href="https://www.buymeacoffee.com/memoliro" target="_blank" rel="noopener" class="btn btn-coffee" style="margin-top:6px">☕ Buy me a coffee</a>
   </section>
 </div>
 
@@ -372,7 +378,8 @@
   <div class="footer-grid">
     <div>
       <h4>🖼️ JSM Enhance</h4>
-      <p class="muted small">AI outpainting for your photos.<br>No account, no subscription — just credits.</p>
+      <p class="small" style="color:#98a2b3;line-height:1.6">AI outpainting, sharpening & unblurring for your photos.<br>No account, no subscription — just credits that never expire.</p>
+      <p class="small" style="margin-top:12px"><span style="display:inline-flex;gap:6px;align-items:center;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:999px;padding:6px 12px">🌗 Light / Dark supported</span></p>
     </div>
     <div>
       <h4>Free tools</h4>
@@ -394,7 +401,7 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <p class="muted small">© 2026 JSM Enhance · AI results may vary</p>
+    <p class="small" style="color:#667085">© 2026 JSM Enhance · AI results may vary · Built with care in Montreal</p>
   </div>
 </footer>
 
@@ -402,15 +409,15 @@
 <div id="creditsModal" class="modal" hidden>
   <div class="modal-card">
     <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
-    <h2>🪙 Credits</h2>
+    <h2 style="font-family:'Plus Jakarta Sans',sans-serif">🪙 Credits</h2>
     <p class="balance">Balance: <b id="modalBalance">0</b> credits</p>
     <div id="buySection">
       <h3>Get more credits</h3>
-      <p class="muted">Pick an amount — pay, get a single-use code, paste it below.</p>
+      <p class="muted small">Pick an amount — pay, get a single-use code, paste it below.</p>
       <div class="pack-row" id="packRow"></div>
       <button id="paypalBuyBtn" class="btn btn-paypal">🅿 Pay $5 with PayPal</button>
       <button id="stripeBuyBtn" class="btn btn-stripe">💳 Pay $5 with Card</button>
-      <p class="muted small" id="payHint"></p>
+      <p class="muted small" id="payHint" style="margin-top:10px"></p>
     </div>
     <div class="redeem">
       <h3>Redeem a code</h3>
@@ -424,5 +431,36 @@
 </div>
 
 <script src="app.js?v=20261004p"></script>
+
+<script>
+// Hero before/after - 20% blur - BEFORE / AFTER only
+document.addEventListener('DOMContentLoaded',()=>{
+  const wrap=document.getElementById('heroBaWrap');
+  if(!wrap) return;
+  let dragging=false;
+  function setPos(x){
+    const r=wrap.getBoundingClientRect();
+    let p=((x-r.left)/r.width)*100;
+    p=Math.max(5,Math.min(95,p));
+    wrap.style.setProperty('--pos',p+'%');
+  }
+  wrap.addEventListener('pointerdown',e=>{dragging=true;wrap.setPointerCapture(e.pointerId);setPos(e.clientX);});
+  wrap.addEventListener('pointermove',e=>{if(dragging) setPos(e.clientX);});
+  wrap.addEventListener('pointerup',()=>dragging=false);
+  wrap.addEventListener('pointerleave',()=>dragging=false);
+  setTimeout(()=>{
+    wrap.style.transition='--pos 0.9s ease';
+    wrap.style.setProperty('--pos','18%');
+    setTimeout(()=>{
+      wrap.style.setProperty('--pos','82%');
+      setTimeout(()=>{
+        wrap.style.setProperty('--pos','58%');
+        setTimeout(()=>{wrap.style.transition='';},900);
+      },900);
+    },900);
+  },500);
+});
+</script>
+
 </body>
 </html>
