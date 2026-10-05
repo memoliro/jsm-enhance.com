@@ -165,7 +165,7 @@
     position: absolute;
     top: 14px;
     z-index: 6;
-    font-size: .92rem;
+    font-size: 38px;
     font-weight: 800;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -173,7 +173,7 @@
     backdrop-filter: blur(6px);
     color: #fff;
     border-radius: 999px;
-    padding: 8px 16px;
+    padding: 10px 22px;
     pointer-events: none;
   }
   #extendDemo .ba-tag-before { left: 12px; }
@@ -184,12 +184,7 @@
   #extendDemo .ba-duo .ba-slider { max-width:none; margin:0; }
   #extendDemo .ba-cap { text-align:center; color:#667085; font-size:.85rem; margin:10px 0 0; }
   html[data-theme="dark"] #extendDemo .ba-cap { color:#98a2b3; }
-  /* second slider: 16:9 stage */
-  #extendDemo #ba-slider2 { aspect-ratio:16/9; }
-  #extendDemo #ba-stage2 { width:1920px; height:1080px; }
-  #extendDemo #ba-after2 { left:0; top:0; width:1920px; height:1080px; }
-  #extendDemo #ba-plate2 { width:1920px; height:1080px; }
-  #extendDemo .ba-square { left:420px; top:0; width:1080px; height:1080px; }
+
   @media (max-width:760px){ #extendDemo .ba-duo{ flex-direction:column; } }
 </style>
 <div class="ba-duo">
@@ -215,10 +210,10 @@
 <div>
 <div class="ba-slider" id="ba-slider2">
   <div class="ba-stage" id="ba-stage2">
-    <img id="ba-after2" alt="AFTER" src="before-after-slider_extend/flamenko-wide.jpg" />
+    <img class="ba-after" alt="AFTER" src="before-after-slider_extend/flamenko-square.jpg" />
     <div class="ba-before-clip" id="ba-clip2">
-      <div class="ba-before-plate" id="ba-plate2">
-        <img class="ba-square" alt="BEFORE" src="before-after-slider_extend/flamenko-square.jpg" />
+      <div class="ba-before-plate">
+        <img class="ba-wide" alt="BEFORE" src="before-after-slider_extend/flamenko-wide.jpg" />
       </div>
     </div>
     <div class="ba-tag ba-tag-before">BEFORE</div>
@@ -229,7 +224,7 @@
     </div>
   </div>
 </div>
-<p class="ba-cap">Square photo &rarr; 16:9 wide</p>
+<p class="ba-cap">16:9 thumbnail &rarr; 1080&times;1080 square</p>
 </div>
 </div>
 
@@ -271,7 +266,7 @@ function initDemoSlider(rootId, stageId, clipId, dividerId, canvas) {
   setRatio(0.5);
 }
 initDemoSlider('ba-slider', 'ba-stage', 'ba-clip', 'ba-divider', 3000);
-initDemoSlider('ba-slider2', 'ba-stage2', 'ba-clip2', 'ba-divider2', 1920);
+initDemoSlider('ba-slider2', 'ba-stage2', 'ba-clip2', 'ba-divider2', 3000);
 </script>
   </section>
 
