@@ -123,8 +123,9 @@
     background: #000;
     overflow: hidden;
   }
-  /* blurred fill behind the 16:9 original — same idea as jsm-image's blurred-background fit */
-  #extendDemo .ba-blurbg {
+  /* blurred fill behind the 16:9 original — same idea as jsm-image's blurred-background fit.
+     NOTE: needs img.ba-blurbg specificity to beat `#extendDemo .ba-stage img{filter:none}` */
+  #extendDemo .ba-stage img.ba-blurbg {
     left: -150px;
     top: -150px;
     width: 3300px;
