@@ -920,7 +920,7 @@ async function runUnblur() {
 $('unblurBtn').onclick = runUnblur;
 
 /* before/after compare sliders (extend + sharpen + unblur) */
-['baWrap', 'baWrapEx', 'baWrapUn'].forEach(wrapId => {
+['baWrapEx', 'baWrapSh', 'baWrapUn'].forEach(wrapId => {
   const wrap = $(wrapId);
   let drag = false;
   const setPos = e => {
