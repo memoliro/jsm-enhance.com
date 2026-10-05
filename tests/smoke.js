@@ -96,6 +96,11 @@ const __probe = async () => {
       if (!document.getElementById(id).hidden) throw new Error(id + ' still visible after New image');
     }
     console.log('newImage buttons: OK');
+    for (const id of ['sharpenThisBtn', 'editorReset']) {
+      const b = document.getElementById(id);
+      if (!b || typeof b.onclick !== 'function') throw new Error(id + ' not wired');
+    }
+    console.log('sharpenThis + editorReset: wired');
   } catch (e) {
     console.log('newImage buttons THROW:', e.message);
     failures++;

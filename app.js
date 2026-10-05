@@ -708,6 +708,16 @@ function newImage() {
 $('newImageBtn').onclick = newImage;
 $('shNewBtn').onclick = newImage;
 $('unNewBtn').onclick = newImage;
+/* "Sharpen this" under the Extend result: chain the extended image into the Sharpen tab */
+$('sharpenThisBtn').onclick = async () => {
+  const src = $('baAfterEx').src;
+  if (!src) return;
+  ['resultWrap', 'shResultWrap', 'unResultWrap'].forEach(id => { const el = $(id); if (el) el.hidden = true; });
+  try {
+    setUploadedImage(await loadImage(src));
+    selectTool('sharpen');
+  } catch (e) { alert('Could not load the extended image.'); }
+};
 /* dropdown open/close */
 $('ratioDDBtn').onclick = e => { e.stopPropagation(); toggleRatioMenu(); };
 document.addEventListener('click', e => { if (!$('ratioDD').contains(e.target)) closeRatioMenu(); });
@@ -1423,6 +1433,7 @@ function initTextEditor() {
   $('textCanvas').onclick = openEditor;
   $('editorDone').onclick = closeEditor;
   $('editorClose').onclick = closeEditor;
+  $('editorReset').onclick = () => { textLayers = []; selectedId = null; refreshText(); };
   $('layerAdd').onclick = () => {
     addLayer();
     refreshText();
