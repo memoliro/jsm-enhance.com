@@ -121,6 +121,16 @@
     width: 3000px;
     height: 3000px;
     background: #000;
+    overflow: hidden;
+  }
+  /* blurred fill behind the 16:9 original — same idea as jsm-image's blurred-background fit */
+  #extendDemo .ba-blurbg {
+    left: -150px;
+    top: -150px;
+    width: 3300px;
+    height: 3300px;
+    object-fit: cover;
+    filter: blur(90px) brightness(.62) saturate(1.25);
   }
   #extendDemo .ba-wide {
     left: 0;
@@ -184,6 +194,7 @@
     <img class="ba-after" alt="AFTER" src="before-after-slider_extend/extended-to-3000x3000.png" />
     <div class="ba-before-clip" id="ba-clip">
       <div class="ba-before-plate">
+        <img class="ba-blurbg" alt="" aria-hidden="true" src="before-after-slider_extend/16-9-widescreen.jpg" />
         <img class="ba-wide" alt="BEFORE" src="before-after-slider_extend/16-9-widescreen.jpg" />
       </div>
     </div>
