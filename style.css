@@ -686,3 +686,11 @@ html[data-theme="dark"] .align-row button.active{background:#fff;color:#0b0e14;b
 .style-row input[type="color"]{
   border-color:var(--input-border);
 }
+
+/* Purchased-code banner */
+.code-box{display:grid;gap:10px;padding:14px;border:1px solid var(--input-border);border-radius:14px;background:var(--card)}
+.code-value{font-family:ui-monospace,monospace;font-size:1.3rem;font-weight:800;letter-spacing:.08em;color:var(--text)}
+.code-note{
+  margin:0;padding:10px 12px;border-radius:12px;
+  border:2px solid #f59e0b;background:rgba(245,158,11,.08);color:var(--text);
+}

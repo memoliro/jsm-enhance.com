@@ -1025,11 +1025,17 @@ function showPurchasedCode(code) {
   $('payHint').innerHTML =
     '<div class="code-box"><div class="muted small">Payment received! Your code:</div>' +
     '<div class="code-value"></div>' +
-    '<p class="muted small">📸 Take a screenshot of this code and keep it safe — it works even if you clear your browser. ' +
-    'Single-use: once redeemed, your remaining credits live in this browser\'s wallet.</p></div>';
+    '<p class="code-note small">📸 Take a screenshot of this code and keep it safe — it works even if you clear your browser. ' +
+    'Single-use: once redeemed, your remaining credits live in this browser\'s wallet.</p>' +
+    '<div><button type="button" class="btn btn-primary" id="codeOkBtn">OK</button></div></div>';
   $('payHint').querySelector('.code-value').textContent = code;
   $('codeInput').value = code;
   $('redeemMsg').className = 'muted'; $('redeemMsg').textContent = '';
+  // OK tucks the banner away shortly; an ignored banner tidies itself up anyway
+  let dismissed = false;
+  const dismissCode = () => { if (dismissed) return; dismissed = true; resetBuyModal(); };
+  $('codeOkBtn').onclick = e => { e.target.disabled = true; setTimeout(dismissCode, 600); };
+  setTimeout(dismissCode, 15000);
 }
 
 async function doRedeem(code, auto) {
