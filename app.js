@@ -648,8 +648,7 @@ $('extendBtn').onclick = async () => {
     updateExtendUI();
   }
 };
-$('againBtn').onclick = () => { $('extendBtn').click(); }; // another roll, same settings (1 credit)
-$('addTextBtn').onclick = () => { drawTextPreview(); openEditor(); }; // editor opens on the extended result
+$('openEditor').onclick = () => { drawTextPreview(); openEditor(); }; // editor opens on the extended result
 
 /* ---------- tool tabs: extend vs sharpen (inside the controls card) ---------- */
 let activeTool = 'extend';
@@ -823,9 +822,9 @@ async function runSharpen() {
     const bc = document.createElement('canvas');
     bc.width = w; bc.height = h;
     bc.getContext('2d').drawImage(shImg(), 0, 0, w, h);
-    $('baBeforeImg').src = bc.toDataURL('image/jpeg', 0.9);
-    $('baAfter').src = outUrl;
-    $('baWrap').style.setProperty('--pos', '50%');
+    $('baBeforeSh').src = bc.toDataURL('image/jpeg', 0.9);
+    $('baAfterSh').src = outUrl;
+    $('baWrapSh').style.setProperty('--pos', '50%');
     $('shDownloadBtn').href = outUrl;
     $('shDownloadBtn').download = `jsm-sharpen-${ow}x${oh}.png`;
     $('shResultSize').textContent = `${ow.toLocaleString()} × ${oh.toLocaleString()} px PNG`;
@@ -848,7 +847,6 @@ async function runSharpen() {
   }
 }
 $('sharpenBtn').onclick = runSharpen;
-$('shAgainBtn').onclick = () => { $('sharpenBtn').click(); }; // another run, same settings (1 credit)
 
 /* ---------- unblur ---------- */
 const UN_MAX_SIDE = 2048; // NAFNet returns input resolution; cap longest side for speed
@@ -920,7 +918,6 @@ async function runUnblur() {
   }
 }
 $('unblurBtn').onclick = runUnblur;
-$('unAgainBtn').onclick = () => { $('unblurBtn').click(); }; // another run, same photo (1 credit)
 
 /* before/after compare sliders (extend + sharpen + unblur) */
 ['baWrap', 'baWrapEx', 'baWrapUn'].forEach(wrapId => {
@@ -1264,12 +1261,12 @@ function refreshText() {
 }
 function openEditor() {
   if (!imgEl) return;
-  $('textEditor').hidden = false;
+  $('textEditorOverlay').hidden = false;
   document.body.style.overflow = 'hidden';
   renderEditor();
 }
 function closeEditor() {
-  $('textEditor').hidden = true;
+  $('textEditorOverlay').hidden = true;
   document.body.style.overflow = '';
   drawTextPreview();
 }
@@ -1411,7 +1408,7 @@ function initFontPicker() {
 function initTextEditor() {
   // Editor-level Escape first: closes the editor only when the font dropdown is already closed.
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !$('textEditor').hidden && $('fontDrop').hidden) closeEditor();
+    if (e.key === 'Escape' && !$('textEditorOverlay').hidden && $('fontDrop').hidden) closeEditor();
   });
   initFontPicker();
   $('openEditor').onclick = openEditor;

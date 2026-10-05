@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004q">
+<link rel="stylesheet" href="style.css?v=20261004r">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -387,6 +387,7 @@
         <span class="ba-tag ba-tag-l">Before</span>
         <span class="ba-tag ba-tag-r">After</span>
       </div>
+      <p class="muted small" id="shResultSize"></p>
       <div class="result-actions">
         <a id="shDownloadBtn" class="btn btn-primary" download="jsm-sharpened.jpg">⬇ Download</a>
         <button id="shNewBtn" class="btn btn-secondary">New image</button>
@@ -401,6 +402,7 @@
         <span class="ba-tag ba-tag-l">Before</span>
         <span class="ba-tag ba-tag-r">After</span>
       </div>
+      <p class="muted small" id="unResultSize"></p>
       <div class="result-actions">
         <a id="unDownloadBtn" class="btn btn-primary" download="jsm-unblurred.jpg">⬇ Download</a>
         <button id="unNewBtn" class="btn btn-secondary">New image</button>
@@ -616,7 +618,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004q"></script>
+<script src="app.js?v=20261004r"></script>
 
 <script>
 // Hero before/after - 20% blur - BEFORE / AFTER only
