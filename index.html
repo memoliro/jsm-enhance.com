@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004p">
+<link rel="stylesheet" href="style.css?v=20261004q">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -63,6 +63,192 @@
       </div>
     </div>
     </div>
+  </section>
+
+
+  <!-- EXTEND DEMO -->
+  <section class="card" id="extendDemo">
+    <h2>\U0001f5bc\ufe0f Extend in action</h2>
+    <p class="muted" style="text-align:center;max-width:660px;margin:0 auto 18px">Drag the handle &mdash; a 16:9 photo becomes a full 3000&times;3000 square, with AI painting in everything beyond the original edges.</p>
+    <style>
+
+  #extendDemo .ba-slider {
+    position: relative;
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto;
+    aspect-ratio: 1;
+    background: #000;
+    overflow: hidden;
+    touch-action: none;
+    cursor: ew-resize;
+    user-select: none;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  #extendDemo .ba-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3000px;
+    height: 3000px;
+    transform-origin: 0 0;
+  }
+  #extendDemo .ba-stage img {
+    position: absolute;
+    display: block;
+    opacity: 1;
+    filter: none;
+    mix-blend-mode: normal;
+  }
+  #extendDemo .ba-after {
+    left: 0;
+    top: 0;
+    width: 3000px;
+    height: 3000px;
+  }
+  #extendDemo .ba-before-clip {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 50%;
+    overflow: hidden;
+  }
+  #extendDemo .ba-before-plate {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3000px;
+    height: 3000px;
+    background: #000;
+  }
+  #extendDemo .ba-wide {
+    left: 0;
+    top: 656px;
+    width: 3000px;
+    height: 1688px;
+  }
+  #extendDemo .ba-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    z-index: 5;
+    pointer-events: none;
+  }
+  #extendDemo .ba-divider .ba-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -1px;
+    width: 3px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.45);
+  }
+  #extendDemo .ba-handle {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 54px;
+    height: 54px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 3px solid #fff;
+    background: rgba(0,0,0,0.55);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    pointer-events: auto;
+    cursor: ew-resize;
+  }
+  #extendDemo .ba-handle i {
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+  }
+  #extendDemo .ba-handle .ba-l { border-right: 8px solid #fff; }
+  #extendDemo .ba-handle .ba-r { border-left: 8px solid #fff; }
+  #extendDemo .ba-tag {
+    position: absolute;
+    top: 28px;
+    z-index: 6;
+    padding: 10px 16px;
+    background: #000;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    pointer-events: none;
+  }
+  #extendDemo .ba-tag-before { left: 28px; }
+  #extendDemo .ba-tag-after { right: 28px; }
+</style>
+<div class="ba-slider" id="ba-slider">
+  <div class="ba-stage" id="ba-stage">
+    <img class="ba-after" alt="AFTER" src="before-after-slider_extend/extended-to-3000x3000.png" />
+    <div class="ba-before-clip" id="ba-clip">
+      <div class="ba-before-plate">
+        <img class="ba-wide" alt="BEFORE" src="before-after-slider_extend/16-9-widescreen.jpg" />
+      </div>
+    </div>
+    <div class="ba-tag ba-tag-before">BEFORE</div>
+    <div class="ba-tag ba-tag-after">AFTER</div>
+    <div class="ba-divider" id="ba-divider">
+      <div class="ba-bar"></div>
+      <div class="ba-handle"><i class="ba-l"></i><i class="ba-r"></i></div>
+    </div>
+  </div>
+</div>
+
+    <script>
+(function () {
+  var root = document.getElementById('ba-slider');
+  var stage = document.getElementById('ba-stage');
+  var clip = document.getElementById('ba-clip');
+  var divider = document.getElementById('ba-divider');
+  var CANVAS = 3000;
+  var ratio = 0.5;
+  function fit() {
+    stage.style.transform = 'scale(' + (root.clientWidth / CANVAS) + ')';
+  }
+  function setRatio(next) {
+    ratio = Math.min(1, Math.max(0, next));
+    var px = ratio * CANVAS;
+    clip.style.width = px + 'px';
+    divider.style.left = px + 'px';
+  }
+  function ratioFrom(clientX) {
+    var rect = root.getBoundingClientRect();
+    return (clientX - rect.left) / rect.width;
+  }
+  root.addEventListener('pointerdown', function (e) {
+    root.setPointerCapture(e.pointerId);
+    setRatio(ratioFrom(e.clientX));
+  });
+  root.addEventListener('pointermove', function (e) {
+    if (e.buttons) setRatio(ratioFrom(e.clientX));
+  });
+  root.addEventListener('touchstart', function (e) {
+    setRatio(ratioFrom(e.touches[0].clientX));
+  }, { passive: true });
+  root.addEventListener('touchmove', function (e) {
+    setRatio(ratioFrom(e.touches[0].clientX));
+  }, { passive: true });
+  window.addEventListener('keydown', function (e) {
+    var t = document.activeElement; /* don't steal arrows from text inputs */
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'ArrowLeft') setRatio(ratio - 0.02);
+    if (e.key === 'ArrowRight') setRatio(ratio + 0.02);
+  });
+  new ResizeObserver(fit).observe(root);
+  fit();
+  setRatio(0.5);
+})();
+</script>
   </section>
 
   <div id="demoBanner" class="banner" hidden>🧪 <b>Demo mode</b> — results are simulated with a blurred fill. Connect the AI backend for real outpainting.</div>
@@ -365,7 +551,7 @@
     <details><summary>Why don't I need an account?</summary>
       <p>Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it. Fewer accounts, fewer passwords, less of your data floating around. Just remember the wallet lives in that browser — keep your code screenshot until the credits are spent.</p></details>
     <details><summary>Can I add text to my image?</summary>
-      <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (29 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend, Sharpen or Unblur.</p></details>
+      <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (31 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend, Sharpen or Unblur.</p></details>
 </section>
   <section class="card support-card">
     <h2 style="justify-content:center">Support the site</h2>
@@ -430,7 +616,7 @@
   </div>
 </div>
 
-<script src="app.js?v=20261004p"></script>
+<script src="app.js?v=20261004q"></script>
 
 <script>
 // Hero before/after - 20% blur - BEFORE / AFTER only

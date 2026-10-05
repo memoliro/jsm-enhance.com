@@ -144,7 +144,8 @@ dz.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') fi.click(); };
 ['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
 ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
 dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
-fi.onchange = () => { if (fi.files[0]) loadFile(fi.files[0]); };
+fi.onchange = () => { const f = fi.files[0]; fi.value = ''; /* reset so picking the
+  same file again still fires change */ if (f) loadFile(f); };
 
 function setUploadedImage(im) {
   imgEl = im; imgW = im.naturalWidth; imgH = im.naturalHeight;
