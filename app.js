@@ -812,6 +812,16 @@ $('sharpenResultBtn').onclick = () => {
   sharpenSrc = { img: lastClean, w: lastClean.naturalWidth, h: lastClean.naturalHeight };
   selectTool('sharpen');
 };
+/* GPU OOM (and similar infra errors) come back as raw technical dumps;
+   translate them into something a human can act on. */
+function friendlyAiError(msg) {
+  msg = String(msg || '');
+  if (/out of memory/i.test(msg))
+    return 'The AI ran out of GPU memory on this image — it is too large for the current setting. Try a smaller image, or 1\u00d7 upscale instead of 2\u00d7/4\u00d7, then try again.';
+  if (/NSFW|flagged/i.test(msg))
+    return 'The AI declined this image (content filter). Try a different photo.';
+  return msg;
+}
 async function runSharpen() {
   if (!shImg()) return;
   if (balance < 1) { openModal(); return; } // server re-checks anyway
@@ -855,7 +865,7 @@ async function runSharpen() {
        only the server knows the truth. Refresh and report it. */
     await refreshBalance();
     const err = $('shErr');
-    err.textContent = 'Sharpen failed: ' + (e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
+    err.textContent = 'Sharpen failed: ' + friendlyAiError(e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
     err.hidden = false;
     $('shResultWrap').hidden = true;
   } finally {
@@ -927,7 +937,7 @@ async function runUnblur() {
        only the server knows the truth. Refresh and report it. */
     await refreshBalance();
     const err = $('unErr');
-    err.textContent = 'Unblur failed: ' + (e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
+    err.textContent = 'Unblur failed: ' + friendlyAiError(e.message || e) + ` Your balance: ${balance} credit${balance === 1 ? '' : 's'}.`;
     err.hidden = false;
     $('unResultWrap').hidden = true;
   } finally {

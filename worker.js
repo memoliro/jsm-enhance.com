@@ -345,7 +345,7 @@ async function handleExtend(req, env) {
   } catch (e) {
     // Refund: the GPU never delivered, so the credit goes back.
     await refundWallet(env, token);
-    return json({ error: e.message + ' — no credit was used.' }, 502);
+    return json({ error: friendlyAiError(e.message) + ' — no credit was used.' }, 502);
   }
 }
 
@@ -369,8 +369,18 @@ async function handleSharpen(req, env) {
     return json({ image_b64, image_url: url, scale: sc, credits: await walletCredits(env, token) });
   } catch (e) {
     await refundWallet(env, token);
-    return json({ error: e.message + ' — no credit was used.' }, 502);
+    return json({ error: friendlyAiError(e.message) + ' — no credit was used.' }, 502);
   }
+}
+
+/* Raw infra errors (CUDA OOM etc.) are technical dumps — translate to actionable text. */
+function friendlyAiError(msg) {
+  msg = String(msg || '');
+  if (/out of memory/i.test(msg))
+    return 'The AI ran out of GPU memory on this image — it is too large for the current setting. Try a smaller image, or 1\u00d7 upscale instead of 2\u00d7/4\u00d7, then try again.';
+  if (/NSFW|flagged/i.test(msg))
+    return 'The AI declined this image (content filter). Try a different photo.';
+  return msg;
 }
 
 /* ---------- unblur via Replicate (credit-gated) ----------
@@ -402,7 +412,7 @@ async function handleUnblur(req, env) {
     return json({ image_b64, image_url: url, credits: await walletCredits(env, token) });
   } catch (e) {
     await refundWallet(env, token);
-    return json({ error: e.message + ' — no credit was used.' }, 502);
+    return json({ error: friendlyAiError(e.message) + ' — no credit was used.' }, 502);
   }
 }
 
