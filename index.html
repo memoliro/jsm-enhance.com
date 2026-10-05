@@ -56,7 +56,7 @@
     <div class="hero-visual hero-ba" aria-hidden="false">
       <div class="ba-wrap hero-ba-wrap" id="heroBaWrap" style="--pos:58%">
         <img id="heroAfter" src="./img/new-hero-sharp.png" alt="After">
-        <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-15pct.png" alt="Before">
+        <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-20pct.png" alt="Before">
         <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
         <span class="ba-tag ba-tag-l">BEFORE</span>
         <span class="ba-tag ba-tag-r">AFTER</span>
@@ -69,7 +69,7 @@
   <!-- EXTEND DEMO -->
   <section class="card" id="extendDemo">
     <h2>🖼️ Extend in action</h2>
-    <p class="muted" style="text-align:center;max-width:660px;margin:0 auto 18px">Drag the handle &mdash; a 16:9 photo becomes a full 3000&times;3000 square, with AI painting in everything beyond the original edges.</p>
+    <p class="muted" style="text-align:center;max-width:660px;margin:0 auto 18px">Drag the handles &mdash; AI paints in everything beyond the original edges.</p>
     <style>
 
   #extendDemo .ba-slider {
@@ -165,9 +165,9 @@
     position: absolute;
     top: 14px;
     z-index: 6;
-    font-size: 40px;
+    font-size: .92rem;
     font-weight: 800;
-    letter-spacing: .1em;
+    letter-spacing: .06em;
     text-transform: uppercase;
     background: rgba(16,24,40,.82);
     backdrop-filter: blur(6px);
@@ -178,7 +178,22 @@
   }
   #extendDemo .ba-tag-before { left: 12px; }
   #extendDemo .ba-tag-after { right: 12px; }
+  /* side-by-side demo duo */
+  #extendDemo .ba-duo { display:flex; gap:18px; align-items:center; max-width:1280px; margin:0 auto; }
+  #extendDemo .ba-duo > div { flex:1 1 0; min-width:0; }
+  #extendDemo .ba-duo .ba-slider { max-width:none; margin:0; }
+  #extendDemo .ba-cap { text-align:center; color:#667085; font-size:.85rem; margin:10px 0 0; }
+  html[data-theme="dark"] #extendDemo .ba-cap { color:#98a2b3; }
+  /* second slider: 16:9 stage */
+  #extendDemo #ba-slider2 { aspect-ratio:16/9; }
+  #extendDemo #ba-stage2 { width:1920px; height:1080px; }
+  #extendDemo #ba-after2 { left:0; top:0; width:1920px; height:1080px; }
+  #extendDemo #ba-plate2 { width:1920px; height:1080px; }
+  #extendDemo .ba-square { left:420px; top:0; width:1080px; height:1080px; }
+  @media (max-width:760px){ #extendDemo .ba-duo{ flex-direction:column; } }
 </style>
+<div class="ba-duo">
+<div>
 <div class="ba-slider" id="ba-slider">
   <div class="ba-stage" id="ba-stage">
     <img class="ba-after" alt="AFTER" src="before-after-slider_extend/extended-to-3000x3000.png" />
@@ -195,21 +210,42 @@
     </div>
   </div>
 </div>
+<p class="ba-cap">16:9 photo &rarr; 3000&times;3000 square</p>
+</div>
+<div>
+<div class="ba-slider" id="ba-slider2">
+  <div class="ba-stage" id="ba-stage2">
+    <img id="ba-after2" alt="AFTER" src="before-after-slider_extend/flamenko-wide.jpg" />
+    <div class="ba-before-clip" id="ba-clip2">
+      <div class="ba-before-plate" id="ba-plate2">
+        <img class="ba-square" alt="BEFORE" src="before-after-slider_extend/flamenko-square.jpg" />
+      </div>
+    </div>
+    <div class="ba-tag ba-tag-before">BEFORE</div>
+    <div class="ba-tag ba-tag-after">AFTER</div>
+    <div class="ba-divider" id="ba-divider2">
+      <div class="ba-bar"></div>
+      <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+    </div>
+  </div>
+</div>
+<p class="ba-cap">Square photo &rarr; 16:9 wide</p>
+</div>
+</div>
 
     <script>
-(function () {
-  var root = document.getElementById('ba-slider');
-  var stage = document.getElementById('ba-stage');
-  var clip = document.getElementById('ba-clip');
-  var divider = document.getElementById('ba-divider');
-  var CANVAS = 3000;
+function initDemoSlider(rootId, stageId, clipId, dividerId, canvas) {
+  var root = document.getElementById(rootId);
+  var stage = document.getElementById(stageId);
+  var clip = document.getElementById(clipId);
+  var divider = document.getElementById(dividerId);
   var ratio = 0.5;
   function fit() {
-    stage.style.transform = 'scale(' + (root.clientWidth / CANVAS) + ')';
+    stage.style.transform = 'scale(' + (root.clientWidth / canvas) + ')';
   }
   function setRatio(next) {
     ratio = Math.min(1, Math.max(0, next));
-    var px = ratio * CANVAS;
+    var px = ratio * canvas;
     clip.style.width = px + 'px';
     divider.style.left = px + 'px';
   }
@@ -230,16 +266,12 @@
   root.addEventListener('touchmove', function (e) {
     setRatio(ratioFrom(e.touches[0].clientX));
   }, { passive: true });
-  window.addEventListener('keydown', function (e) {
-    var t = document.activeElement; /* don't steal arrows from text inputs */
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if (e.key === 'ArrowLeft') setRatio(ratio - 0.02);
-    if (e.key === 'ArrowRight') setRatio(ratio + 0.02);
-  });
   new ResizeObserver(fit).observe(root);
   fit();
   setRatio(0.5);
-})();
+}
+initDemoSlider('ba-slider', 'ba-stage', 'ba-clip', 'ba-divider', 3000);
+initDemoSlider('ba-slider2', 'ba-stage2', 'ba-clip2', 'ba-divider2', 1920);
 </script>
   </section>
 
