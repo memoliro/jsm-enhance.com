@@ -84,6 +84,22 @@ const __probe = async () => {
 };
 (async () => {
   await __probe();
+  // "New image" buttons: unhide a result card, click, expect all result cards hidden
+  try {
+    for (const id of ['newImageBtn', 'shNewBtn', 'unNewBtn']) {
+      const b = document.getElementById(id);
+      if (!b || typeof b.onclick !== 'function') throw new Error(id + ' not wired');
+    }
+    document.getElementById('unResultWrap').hidden = false;
+    document.getElementById('unNewBtn').onclick();
+    for (const id of ['resultWrap', 'shResultWrap', 'unResultWrap']) {
+      if (!document.getElementById(id).hidden) throw new Error(id + ' still visible after New image');
+    }
+    console.log('newImage buttons: OK');
+  } catch (e) {
+    console.log('newImage buttons THROW:', e.message);
+    failures++;
+  }
   await new Promise(r => setTimeout(r, 100));
   console.log(failures ? 'SMOKE: FAIL' : 'SMOKE: PASS');
   process.exit(failures ? 1 : 0);

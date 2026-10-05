@@ -700,6 +700,14 @@ document.addEventListener('click', e => {
 $('replaceImgBtn').onclick = () => $('fileInput').click();
 $('showOrigBtn').onclick = () => setPreviewMode('original');
 $('showPlanBtn').onclick = () => setPreviewMode('planned');
+/* "New image" buttons under each result card: clear results, pick a fresh image */
+function newImage() {
+  ['resultWrap', 'shResultWrap', 'unResultWrap'].forEach(id => { const el = $(id); if (el) el.hidden = true; });
+  $('fileInput').click();
+}
+$('newImageBtn').onclick = newImage;
+$('shNewBtn').onclick = newImage;
+$('unNewBtn').onclick = newImage;
 /* dropdown open/close */
 $('ratioDDBtn').onclick = e => { e.stopPropagation(); toggleRatioMenu(); };
 document.addEventListener('click', e => { if (!$('ratioDD').contains(e.target)) closeRatioMenu(); });
