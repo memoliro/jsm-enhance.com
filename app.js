@@ -962,9 +962,13 @@ $('unblurBtn').onclick = runUnblur;
 });
 
 /* ---------- buy + redeem ---------- */
-$('payHint').textContent = DEMO
-  ? 'Demo mode: the PayPal and card buttons simulate a payment and issue a test code.'
-  : `Secure checkout via PayPal or card. $5 → 50 credits, $10 → 100, $15 → 150.`;
+function resetBuyModal() {
+  $('payHint').textContent = DEMO
+    ? 'Demo mode: the PayPal and card buttons simulate a payment and issue a test code.'
+    : `Secure checkout via PayPal or card. $5 → 50 credits, $10 → 100, $15 → 150.`;
+  const m = $('redeemMsg'); m.className = 'muted'; m.textContent = '';
+}
+resetBuyModal();
 
 /* ---------- pack selector ($5 default, $10 / $15 optional) ---------- */
 let selectedPack = CONFIG.PACKS[0];
@@ -1039,6 +1043,8 @@ async function doRedeem(code, auto) {
     msg.className = 'ok'; msg.textContent = `+${r.credits - before} credits added!`;
     if (!auto) $('codeInput').value = '';
     updateExtendUI();
+    // let the success register, then dismiss and leave a clean modal behind
+    setTimeout(() => { closeModal(); resetBuyModal(); }, 1600);
   } catch (e) {
     msg.className = 'err'; msg.textContent = e.message || 'Redeem failed.';
   }
