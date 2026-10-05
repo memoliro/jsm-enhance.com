@@ -11,6 +11,7 @@
   --muted-2:#98a2b3;
   --border:rgba(16,24,40,0.08);
   --border-strong:rgba(16,24,40,0.14);
+  --input-border:rgba(16,24,40,0.30);
   --primary:#635bff;
   --primary-2:#7c5cff;
   --primary-hover:#524add;
@@ -44,6 +45,7 @@ html[data-theme="dark"]{
   --muted-2:#667085;
   --border:rgba(255,255,255,0.08);
   --border-strong:rgba(255,255,255,0.16);
+  --input-border:rgba(255,255,255,0.30);
   --primary:#7c7bff;
   --primary-2:#a78bfa;
   --primary-hover:#6366f1;
@@ -678,3 +680,16 @@ html[data-theme="dark"] .align-row button.active{background:#fff;color:#0b0e14;b
 .hero-ba-wrap .ba-tag{position:absolute;top:12px;font-size:.70rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(16,24,40,.82);backdrop-filter:blur(6px);color:#fff;border-radius:999px;padding:6px 12px;pointer-events:none;z-index:2}
 .hero-ba-wrap .ba-tag-l{left:12px}
 .hero-ba-wrap .ba-tag-r{right:12px}
+
+/* Form controls: keep the 1px thin outline, but make it clearly visible */
+.prompt-label input,
+.dim-field input,
+.redeem-row input,
+.font-drop input,
+.dd-btn,
+.font-btn,
+.seg,
+.preset-grid button,
+.style-row input[type="color"]{
+  border-color:var(--input-border);
+}
