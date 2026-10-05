@@ -416,7 +416,7 @@ const mockBackend = {
     x.drawImage(src, 0, 0);
     return { image_b64: c.toDataURL('image/png'), mock: true, credits: w[token] };
   },
-  async sharpen(imageDataUrl, scale, faceEnhance, token) {
+  async sharpen(imageDataUrl, scale, token) {
     const w = this._wallets();
     if (!w[token] || w[token] < 1) { const e = new Error('No credits — buy more to continue.'); e.code = 402; throw e; }
     w[token]--; this._saveW(w); // atomic debit before work
@@ -487,10 +487,10 @@ const workerBackend = {
     if (!res.ok) { const e = new Error(j.error || 'Extend failed'); e.code = res.status; throw e; }
     return j;
   },
-  async sharpen(imageDataUrl, scale, faceEnhance, token) {
+  async sharpen(imageDataUrl, scale, token) {
     const res = await fetch(CONFIG.API_BASE + '/api/sharpen', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, image: imageDataUrl, scale, face_enhance: faceEnhance }),
+      body: JSON.stringify({ token, image: imageDataUrl, scale }),
     });
     const j = await res.json();
     if (!res.ok) { const e = new Error(j.error || 'Sharpen failed'); e.code = res.status; throw e; }
@@ -825,7 +825,6 @@ function friendlyAiError(msg) {
 async function runSharpen() {
   if (!shImg()) return;
   if (balance < 1) { openModal(); return; } // server re-checks anyway
-  const face = $('shFace').checked;
   $('shProgress').hidden = false;
   $('shResultWrap').hidden = true;
   $('shErr').hidden = true;
@@ -834,7 +833,7 @@ async function runSharpen() {
     // The server atomically deducts 1 credit; the returned balance is authoritative.
     // 1x = enhance at original size: run the model at 2x, then size back down.
     const modelScale = shScale === 1 ? 2 : shScale;
-    const r = await backend.sharpen(sharpenInputDataUrl(), modelScale, face, store.token);
+    const r = await backend.sharpen(sharpenInputDataUrl(), modelScale, store.token);
     setBalance(r.credits);
     const ai = await loadImage(r.image_b64); // data: URL — can never taint
     const { w, h } = sharpenInputDims();

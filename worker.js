@@ -14,7 +14,7 @@
  *   POST /api/paypal/capture        {orderId} -> {code}
  *   POST /api/extend      {token, image, canvas, orig_size, orig_loc, prompt} -> {image_url, credits}
  *                         (Bria Expand: canvas_size + original placement; $0.04/run)
- *   POST /api/sharpen     {token, image, scale, face_enhance} -> {image_url, credits}
+ *   POST /api/sharpen     {token, image, scale} -> {image_url, credits}
  *   POST /api/unblur      {token, image} -> {image_url, credits}
  *
  * Bindings: DB (D1). Secrets: REPLICATE_API_TOKEN, PAYPAL_CLIENT_ID,
@@ -352,7 +352,7 @@ async function handleExtend(req, env) {
 /* ---------- sharpen via Replicate (credit-gated) ---------- */
 async function handleSharpen(req, env) {
   if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
-  const { token, image, scale, face_enhance } = await req.json().catch(() => ({}));
+  const { token, image, scale } = await req.json().catch(() => ({}));
   if (!image) return json({ error: 'Missing image' }, 400);
   const sc = scale === 2 ? 2 : 4;
 
@@ -362,7 +362,7 @@ async function handleSharpen(req, env) {
     const url = await replicateRun(
       env,
       { version: env.REPLICATE_SHARPEN_VERSION || SHARPEN_VERSION },
-      { image, scale: sc, face_enhance: !!face_enhance }
+      { image, scale: sc }
     );
     const image_b64 = await fetchImageAsDataUrl(url);
     await logUsage(env);
