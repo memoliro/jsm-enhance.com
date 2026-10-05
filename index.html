@@ -10,7 +10,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004s">
+<link rel="stylesheet" href="style.css?v=20261004u">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -121,17 +121,6 @@
     width: 3000px;
     height: 3000px;
     background: #000;
-    overflow: hidden;
-  }
-  /* blurred fill behind the 16:9 original — same idea as jsm-image's blurred-background fit.
-     NOTE: needs img.ba-blurbg specificity to beat `#extendDemo .ba-stage img{filter:none}` */
-  #extendDemo .ba-stage img.ba-blurbg {
-    left: -150px;
-    top: -150px;
-    width: 3300px;
-    height: 3300px;
-    object-fit: cover;
-    filter: blur(90px) brightness(.62) saturate(1.25);
   }
   #extendDemo .ba-wide {
     left: 0;
@@ -174,9 +163,9 @@
   }
   #extendDemo .ba-tag {
     position: absolute;
-    top: 12px;
+    top: 14px;
     z-index: 6;
-    font-size: .70rem;
+    font-size: .92rem;
     font-weight: 800;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -184,7 +173,7 @@
     backdrop-filter: blur(6px);
     color: #fff;
     border-radius: 999px;
-    padding: 6px 12px;
+    padding: 8px 16px;
     pointer-events: none;
   }
   #extendDemo .ba-tag-before { left: 12px; }
@@ -195,7 +184,6 @@
     <img class="ba-after" alt="AFTER" src="before-after-slider_extend/extended-to-3000x3000.png" />
     <div class="ba-before-clip" id="ba-clip">
       <div class="ba-before-plate">
-        <img class="ba-blurbg" alt="" aria-hidden="true" src="before-after-slider_extend/16-9-widescreen.jpg" />
         <img class="ba-wide" alt="BEFORE" src="before-after-slider_extend/16-9-widescreen.jpg" />
       </div>
     </div>

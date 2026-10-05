@@ -627,8 +627,10 @@ html[data-theme="dark"] .faq details[open] summary::after{background:#fff;color:
 .preset-grid button{
   border:1px solid var(--border);background:var(--card);border-radius:12px;
   padding:10px 12px;font-size:.86rem;font-weight:600;cursor:pointer;text-align:left;
+  color:var(--text);
   transition:.15s;
 }
+.preset-grid button span{font-weight:400;color:var(--muted)}
 .preset-grid button:hover{border-color:var(--border-strong);transform:translateY(-1px);box-shadow:var(--shadow-xs)}
 
 .tab-free{font-size:.66rem;font-weight:800;background:#dcfce7;color:#166534;border-radius:999px;padding:3px 8px;margin-left:6px;vertical-align:1px}
@@ -639,12 +641,12 @@ html[data-theme="dark"] .tab-free{background:#14532d;color:#bbf7d0}
 .font-drop{position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:20;background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:8px}
 .font-drop input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);margin-bottom:8px}
 .font-list{max-height:220px;overflow:auto;display:grid;gap:2px}
-.font-list button{padding:8px 10px;border:0;background:none;text-align:left;border-radius:8px;cursor:pointer}
+.font-list button{padding:8px 10px;border:0;background:none;text-align:left;border-radius:8px;cursor:pointer;color:var(--text)}
 .font-list button:hover{background:var(--bg-soft)}
 
 .slider{width:100%;accent-color:var(--primary)}
 .align-row{display:flex;gap:6px;margin-top:8px}
-.align-row button{flex:1;padding:8px;border:1px solid var(--border);background:var(--bg-soft);border-radius:10px;cursor:pointer;font-weight:600;font-size:.86rem}
+.align-row button{flex:1;padding:8px;border:1px solid var(--border);background:var(--bg-soft);border-radius:10px;cursor:pointer;font-weight:600;font-size:.86rem;color:var(--text)}
 .align-row button.active{background:var(--text);color:var(--card);border-color:var(--text)}
 html[data-theme="dark"] .align-row button.active{background:#fff;color:#0b0e14;border-color:#fff}
 .style-row{display:flex;gap:10px;align-items:center;margin-top:8px}
