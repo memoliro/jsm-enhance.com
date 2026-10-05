@@ -376,8 +376,8 @@ async function handleSharpen(req, env) {
 /* Raw infra errors (CUDA OOM etc.) are technical dumps — translate to actionable text. */
 function friendlyAiError(msg) {
   msg = String(msg || '');
-  if (/out of memory/i.test(msg))
-    return 'The AI ran out of GPU memory on this image — it is too large for the current setting. Try a smaller image, or 1\u00d7 upscale instead of 2\u00d7/4\u00d7, then try again.';
+    if (/out of memory/i.test(msg))
+    return 'The AI\u2019s GPU ran out of memory \u2014 it was already nearly full, so this is usually temporary. Wait a minute and try again; if it keeps failing, use a smaller image.';
   if (/NSFW|flagged/i.test(msg))
     return 'The AI declined this image (content filter). Try a different photo.';
   return msg;
