@@ -3,14 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JSM Enhance — AI Image Enhancer</title>
-<meta name="description" content="Enhance your photos with AI — extend, sharpen, unblur. Free trial, then pay-per-use credits. No account, no subscription.">
+<title>AI Image Extender & Photo Enhancer — Extend, Sharpen, Unblur | JSM Enhance</title>
+<meta name="description" content="Extend photos with AI outpainting, sharpen blurry pictures & unblur shaky shots. 1 free trial, then pay-per-use credits. No account, no subscription.">
+<link rel="canonical" href="https://jsm-enhance.com/">
+<meta name="theme-color" content="#635bff">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="JSM Enhance">
+<meta property="og:title" content="AI Image Extender & Photo Enhancer — Extend, Sharpen, Unblur">
+<meta property="og:description" content="Extend any photo with AI outpainting, sharpen blurry pictures and unblur shaky shots. Free trial, pay-per-use credits, no account.">
+<meta property="og:url" content="https://jsm-enhance.com/">
+<meta property="og:image" content="https://jsm-enhance.com/before-after-slider_extend/flamenko-wide.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AI Image Extender & Photo Enhancer — Extend, Sharpen, Unblur">
+<meta name="twitter:description" content="Extend any photo with AI outpainting, sharpen blurry pictures and unblur shaky shots. Free trial, pay-per-use credits, no account.">
+<meta name="twitter:image" content="https://jsm-enhance.com/before-after-slider_extend/flamenko-wide.jpg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
 <script>
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261004u">
+<link rel="stylesheet" href="style.css?v=20261004v">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -23,6 +35,9 @@
 {"@type":"Question","name":"Why don't I need an account?","acceptedAnswer":{"@type":"Answer","text":"Your single-use purchase code is your receipt. Paste it in, the credits land in your browser's wallet, and that's it."}},
 {"@type":"Question","name":"Can I add text to my image?","acceptedAnswer":{"@type":"Answer","text":"Yes - step 4 is a full text studio: add as many text lines as you want, each an independent layer with its own font, size, color, position, rotation and style. Drag text right on the image; it burns into the final download."}}
 ]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"JSM Enhance","url":"https://jsm-enhance.com/","applicationCategory":"MultimediaApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript","description":"AI image extender and photo enhancer: outpaint photos to any size, sharpen blurry pictures, unblur shaky shots, and add text. Free trial, pay-per-use credits, no account.","offers":{"@type":"Offer","price":"5.00","priceCurrency":"USD","description":"50 credits, 1 credit = 1 AI job"},"featureList":["AI image extending (outpainting)","AI photo sharpening with upscaling","AI deblurring","Free text editor"]}
 </script>
 </head>
 <body>
@@ -47,7 +62,7 @@
 <main class="wrap-app">
   <section class="hero">
     <div class="hero-badge"><i>✨ NEW</i> Sharpen & Unblur now live — same credits</div>
-    <h1>Make any photo <span class="grad">perfect</span><br>with one click</h1>
+    <h1>AI photo <span class="grad">enhancer</span>: extend, sharpen &amp; unblur any image</h1>
     <p class="sub">Upload a photo — <b>extend</b> it beyond its edges, <b>sharpen</b> blurry details, or <b>unblur</b> shaky shots with AI. <strong>1 free trial</strong>, then 1 credit per job. No account, no subscription, ever.</p>
     <div class="trust-chips">
       <span>✓ No account</span><span>✓ No subscription</span><span>✓ Credits never expire</span><span>✓ Private — nothing stored</span>
@@ -55,8 +70,8 @@
 
     <div class="hero-visual hero-ba" aria-hidden="false">
       <div class="ba-wrap hero-ba-wrap" id="heroBaWrap" style="--pos:58%">
-        <img id="heroAfter" src="./img/new-hero-sharp.png" alt="After">
-        <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-20pct.png" alt="Before">
+        <img id="heroAfter" src="./img/new-hero-sharp.png" alt="AI-sharpened photo result">
+        <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-20pct.png" alt="Blurry original photo before AI enhancement">
         <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
         <span class="ba-tag ba-tag-l">BEFORE</span>
         <span class="ba-tag ba-tag-r">AFTER</span>
@@ -194,10 +209,10 @@
 <div>
 <div class="ba-slider" id="ba-slider">
   <div class="ba-stage" id="ba-stage">
-    <img class="ba-after" alt="AFTER" src="before-after-slider_extend/extended-to-3000x3000.png" />
+    <img class="ba-after" alt="AI-extended 3000x3000 photo" src="before-after-slider_extend/extended-to-3000x3000.png" />
     <div class="ba-before-clip" id="ba-clip">
       <div class="ba-before-plate">
-        <img class="ba-wide" alt="BEFORE" src="before-after-slider_extend/16-9-widescreen.jpg" />
+        <img class="ba-wide" alt="Original 16:9 photo before AI outpainting" src="before-after-slider_extend/16-9-widescreen.jpg" />
       </div>
     </div>
     <div class="ba-divider" id="ba-divider">
@@ -213,10 +228,10 @@
 <div>
 <div class="ba-slider" id="ba-slider2">
   <div class="ba-stage" id="ba-stage2">
-    <img class="ba-after" alt="AFTER" src="before-after-slider_extend/flamenko-square.jpg" />
+    <img class="ba-after" alt="Square photo extended by AI from a 16:9 thumbnail" src="before-after-slider_extend/flamenko-square.jpg" />
     <div class="ba-before-clip" id="ba-clip2">
       <div class="ba-before-plate">
-        <img class="ba-wide" alt="BEFORE" src="before-after-slider_extend/flamenko-wide.jpg" />
+        <img class="ba-wide" alt="Original 16:9 YouTube thumbnail before extending" src="before-after-slider_extend/flamenko-wide.jpg" />
       </div>
     </div>
     <div class="ba-divider" id="ba-divider2">
@@ -577,6 +592,31 @@ initDemoSlider('ba-slider2', 'ba-stage2', 'ba-clip2', 'ba-divider2', 3000);
     <details><summary>Can I add text to my image?</summary>
       <p>Yes — the <b>✏ Text</b> tab (marked <b>Free</b>) is a full text studio: add as many text lines as you want, each one an independent layer with its own font (31 popular Google Fonts), size, color, position, rotation and style. Edit fullscreen, drag text right on the image, and it's burned into the final download. Adding text is always free; you only spend a credit when you also run Extend, Sharpen or Unblur.</p></details>
 </section>
+  <section class="card guides" id="guides">
+    <h2>AI photo enhancement guides</h2>
+    <p class="muted" style="max-width:72ch">Short, practical explainers on getting the most out of each tool — what the AI actually does, when to use which one, and how creators fit them into real work.</p>
+
+    <h3>What is AI image extending (outpainting)?</h3>
+    <p>AI image extending — also called <b>outpainting</b> or <b>uncropping</b> — is the opposite of cropping. Instead of cutting pixels away, the AI studies your photo's content, lighting, colors and style, then generates brand-new pixels beyond the original edges to fill a larger canvas.</p>
+    <p>A classic example: you have a square product photo but need a <b>16:9 YouTube thumbnail</b>. A basic editor would stretch it (distortion) or leave empty bars. An <b>AI image extender</b> paints the missing sides — continuing the background, the sunset, the room — so the result looks like the photo was always that wide.</p>
+    <p>JSM Enhance's <b>Extend</b> tool works exactly this way. Upload any JPG, PNG or WebP, pick a target size — a preset like YouTube 1920&times;1080 or anything custom up to 4096px — and optionally <b>describe the scene</b> ("sunny beach with palm trees") to guide the AI. Your original photo is never altered, cropped or stretched: the AI only invents the new areas around it.</p>
+    <p>Two tips for the best results: keep expansions modest (4:3 &rarr; 16:9 looks more natural than square &rarr; tall 9:16, which asks the AI to invent a lot of canvas), and use the description box — a few words about the scene dramatically improve coherence.</p>
+
+    <h3>Sharpen vs. Unblur: which AI tool fixes your photo?</h3>
+    <p>Blurry photos come in two flavors, and they need different AI.</p>
+    <p>Choose <b>Sharpen</b> when your photo is <b>pixelated, low-resolution or just soft</b> — an old thumbnail, a heavily compressed chat image, a screenshot you want to print. Sharpen <b>reconstructs detail with AI</b>: 1&times; cleans up at the original size, 2&times; and 4&times; <b>upscale</b> while rebuilding sharpness (a true <b>AI image upscaler</b>), and <b>Face enhance</b> gives portraits special treatment. One honest note: the detail is <b>re-imagined, not recovered</b> — the AI invents plausible sharpness; it can't bring back what was never captured.</p>
+    <p>Choose <b>Unblur</b> when your photo suffers from <b>motion blur or missed focus</b> — camera shake, a moving subject, a slightly out-of-focus shot. Unblur uses a dedicated <b>deblurring AI</b> that mathematically reverses blur (not just edge contrast like a basic "sharpen" filter). Same size in, same size out.</p>
+    <p>Not sure? Try Sharpen first for small or soft images, Unblur first for shaky ones. Every result comes with a draggable <b>before/after slider</b>, so you can judge exactly what changed before you download.</p>
+
+    <h3>5 ways creators use an AI image extender</h3>
+    <p><b>1. YouTube thumbnails.</b> Shot a great square photo but need 1280&times;720? Extend it — the AI paints the sides to fit YouTube's 16:9 player perfectly, like the flamenco thumbnail in our demo above.</p>
+    <p><b>2. Product photos.</b> Turn a tight product crop into a wide lifestyle banner for your shop or ads, with the background continuing naturally instead of awkward empty space.</p>
+    <p><b>3. Real-estate listings.</b> Convert vertical phone shots into wide photos that fill property portals — no more cropped-out rooms.</p>
+    <p><b>4. Social repurposing.</b> One shoot, every format: extend a portrait post into a landscape cover, or a story frame into a feed post, without reshooting.</p>
+    <p><b>5. Prints &amp; wallpapers.</b> Extend a favorite photo to fill a poster aspect ratio instead of cropping out the good parts.</p>
+    <p>Pair Extend with the free <b>Text studio</b> to burn titles, prices or watermarks right onto the finished image — then download and post.</p>
+  </section>
+
   <section class="card support-card">
     <h2 style="justify-content:center">Support the site</h2>
     <p class="muted">JSM Enhance stays free to try. If it helps your work, you can buy a coffee — it keeps the servers running.</p>
