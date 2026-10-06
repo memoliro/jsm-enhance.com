@@ -67,6 +67,11 @@ let ratio = null;                        // {rw, rh, label}
 let layout = null;                       // computed canvas layout (orig px)
 let sizeMode = 'ratio';                  // 'ratio' (minimal expansion) or 'exact' (preset/custom px)
 let exactW = 0, exactH = 0;              // requested exact canvas (px, pre-clamp)
+let placeDX = 0, placeDY = 0;            // user drag offset (output px) from centered placement
+let pvImg = null;                        // last preview image rect (backing px), for drag hit-testing
+let pvDrag = null;                       // active drag state
+const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function resetPlacement() { placeDX = 0; placeDY = 0; }
 
 const RATIOS = [
   { label: 'Original', rw: 0, rh: 0 },
@@ -104,8 +109,10 @@ function computeLayout(w, h, rw, rh) {
 /* The deliverable canvas in output pixels: ratio mode = minimal expansion of
    the original; exact mode = preset/custom pixels. Clamped to MAX_OUT_SIDE /
    MAX_OUT_PX so extreme requests can't blow up the browser tab (or imply a
-   bigger AI job than our fixed working size). The original is fit-inside and
-   centered; margins are what the AI paints. */
+   bigger AI job than our fixed working size). The original keeps its ACTUAL
+   size on the canvas (only shrinks if larger than the canvas) and starts
+   centered; the user can drag it freely inside the canvas. Everything the
+   original doesn't cover is what the AI paints. */
 function currentCanvas() {
   let tw, th;
   if (sizeMode === 'exact') { tw = exactW; th = exactH; }
@@ -114,10 +121,13 @@ function currentCanvas() {
   if (tw * th * s * s > CONFIG.MAX_OUT_PX) s = Math.sqrt(CONFIG.MAX_OUT_PX / (tw * th));
   const capped = s < 1;
   tw = Math.max(1, Math.round(tw * s)); th = Math.max(1, Math.round(th * s));
-  const os = Math.min(tw / imgW, th / imgH);
+  let os = 1;
+  if (imgW > tw || imgH > th) os = Math.min(tw / imgW, th / imgH);
   const ow = Math.max(1, Math.round(imgW * os)), oh = Math.max(1, Math.round(imgH * os));
-  const ox = Math.round((tw - ow) / 2), oy = Math.round((th - oh) / 2);
-  const none = ox <= 0 && oy <= 0 && tw - ox - ow <= 0 && th - oy - oh <= 0;
+  const cx = (tw - ow) / 2, cy = (th - oh) / 2;
+  const ox = clampN(Math.round(cx + placeDX), 0, Math.max(0, tw - ow));
+  const oy = clampN(Math.round(cy + placeDY), 0, Math.max(0, th - oh));
+  const none = ow >= tw && oh >= th;
   return { tw, th, ow, oh, ox, oy, capped, none };
 }
 
@@ -155,6 +165,7 @@ function setUploadedImage(im) {
   $('workspace').hidden = false;
   buildRatioMenu();
   buildPresetGrid();
+  resetPlacement();
   selectRatio(RATIOS[0]);
   drawTextPreview();
   drawSharpenPreview();
@@ -226,6 +237,7 @@ function selectRatio(r) {
   $('ratioDDBox').innerHTML = `<i ${ratioBoxStyle(r.rw, r.rh, 26)}></i>`;
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   layout = computeLayout(imgW, imgH, r.rw, r.rh);
+  resetPlacement();
   drawPreview();
   drawTextPreview();
   updateExtendUI();
@@ -248,6 +260,7 @@ function selectPreset(p) {
   sizeMode = 'exact'; exactW = p.w; exactH = p.h;
   markRatioCustom(`${p.w.toLocaleString()} × ${p.h.toLocaleString()}`);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', +b.dataset.w === p.w && +b.dataset.h === p.h));
+  resetPlacement();
   drawPreview();
   drawTextPreview();
   updateExtendUI();
@@ -282,6 +295,7 @@ function applyCustomLive() {
   exactW = Math.min(w, CONFIG.MAX_OUT_SIDE); exactH = Math.min(h, CONFIG.MAX_OUT_SIDE);
   markRatioCustom(`${exactW.toLocaleString()} × ${exactH.toLocaleString()}`);
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  resetPlacement();
   drawPreview(); drawTextPreview(); updateExtendUI();
 }
 ['customW', 'customH'].forEach(id => $(id).addEventListener('input', () => {
@@ -315,7 +329,7 @@ function setPreviewMode(m) {
   refreshPreview();
 }
 function drawPreview() {
-  if (previewMode === 'original') { drawOriginalPreview($('previewCanvas'), 1200); return; }
+  if (previewMode === 'original') { drawOriginalPreview($('previewCanvas'), 1200); pvImg = null; return; }
   const C = currentCanvas();
   const c = $('previewCanvas');
   const maxW = 1200, s = Math.min(1, maxW / C.tw);
@@ -325,13 +339,55 @@ function drawPreview() {
   // extension area tint
   x.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2563eb';
   x.globalAlpha = 0.12; x.fillRect(0, 0, c.width, c.height); x.globalAlpha = 1;
-  // original image, fit-inside and centered (matches the final result)
+  // original image at its real relative size, draggable (matches the final result)
   const dw = C.ow * s, dh = C.oh * s, dx = C.ox * s, dy = C.oy * s;
+  pvImg = { x: dx, y: dy, w: dw, h: dh };
   x.drawImage(imgEl, dx, dy, dw, dh);
   x.strokeStyle = '#2563eb'; x.setLineDash([6, 4]); x.lineWidth = 2;
   x.strokeRect(dx, dy, dw, dh); x.setLineDash([]);
   updateSizeInfo(C);
 }
+
+/* Drag the placed photo freely inside the extend canvas (pointer + touch).
+   Offsets are stored in output px; currentCanvas() clamps them so the photo
+   always stays fully inside the canvas. */
+function previewHit(e) {
+  if (!pvImg || previewMode !== 'plan' || activeTool !== 'extend' || !imgEl) return false;
+  const c = $('previewCanvas'), r = c.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (c.width / r.width);
+  const y = (e.clientY - r.top) * (c.height / r.height);
+  return x >= pvImg.x && x <= pvImg.x + pvImg.w && y >= pvImg.y && y <= pvImg.y + pvImg.h;
+}
+function bindPreviewDrag() {
+  const c = $('previewCanvas');
+  c.style.touchAction = 'pan-y'; // vertical page scroll still works on touch
+  c.addEventListener('pointerdown', e => {
+    if (!previewHit(e)) return;
+    const C = currentCanvas();
+    if (C.none) return;
+    pvDrag = { x0: e.clientX, y0: e.clientY, dx0: placeDX, dy0: placeDY };
+    try { c.setPointerCapture(e.pointerId); } catch (err) {}
+    c.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  c.addEventListener('pointermove', e => {
+    if (pvDrag) {
+      const r = c.getBoundingClientRect();
+      const k = currentCanvas().tw / r.width; // output px per CSS px
+      const C0 = currentCanvas();
+      const cx = (C0.tw - C0.ow) / 2, cy = (C0.th - C0.oh) / 2;
+      placeDX = clampN(pvDrag.dx0 + (e.clientX - pvDrag.x0) * k, -cx, Math.max(0, C0.tw - C0.ow) - cx);
+      placeDY = clampN(pvDrag.dy0 + (e.clientY - pvDrag.y0) * k, -cy, Math.max(0, C0.th - C0.oh) - cy);
+      drawPreview();
+    } else {
+      c.style.cursor = previewHit(e) ? 'grab' : 'default';
+    }
+  });
+  const endDrag = () => { pvDrag = null; c.style.cursor = 'default'; };
+  c.addEventListener('pointerup', endDrag);
+  c.addEventListener('pointercancel', endDrag);
+}
+bindPreviewDrag();
 
 function updateSizeInfo(C) {
   C = C || currentCanvas();
@@ -343,7 +399,7 @@ function updateSizeInfo(C) {
   const extPx = C.tw * C.th - C.ow * C.oh;
   $('previewInfo').innerHTML = C.none
     ? 'No expansion needed — pick a different size to extend, or you may want to <a href="#" data-goto-tool="sharpen">Sharpen</a>.'
-    : `AI will paint ${extPx.toLocaleString()} px² of new background (blue tint).`;
+    : `AI will paint ${extPx.toLocaleString()} px² of new background (blue tint). Drag the photo to reposition it on the canvas.`;
   $('sizeNote').textContent = C.capped
     ? '⚠️ Capped at a safe maximum (4096 px side / 12 MP) to protect quality and processing.'
     : 'AI paints at up to 2048 px, then the result is finished crisply at your chosen size.';
