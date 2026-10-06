@@ -22,7 +22,6 @@
  */
 
 // (legacy) fermatresearch/sdxl-outpainting-lora — replaced by bria/expand-image, Oct 2026
-const REPLICATE_VERSION = 'a542ccf352995f3c41f0bcfaef641daa3058bf2b00e08e04feb0295334ab9804';
 const SHARPEN_VERSION = 'b3ef194191d13140337468c916c2c5b96dd0cb06dffc032a022a31807f6a5ea8'; // nightmareai/real-esrgan — restoration + upscale
 const UNBLUR_VERSION = 'e116b6df8437d9c562f9de2a86cea6fd76a96705e502f091457926bbe989436c'; // megvii-research/nafnet — deblurring (pinned; the /v1/models/.../predictions shortcut only serves official models)
 /* Tiered pricing. Credits are ALWAYS derived from the amount the payment
@@ -85,10 +84,14 @@ async function handleTrial(req, env) {
   if (seen?.used) return json({ error: 'Trial already used' }, 403);
   const token = makeToken();
   const now = Date.now();
-  await env.DB.batch([
-    env.DB.prepare('INSERT OR REPLACE INTO trials (ip, used, created_at) VALUES (?, 1, ?)').bind(ip, now),
-    env.DB.prepare('INSERT INTO wallets (token, credits, created_at) VALUES (?, ?, ?)').bind(token, TRIAL_CREDITS, now),
-  ]);
+  try {
+    // Plain INSERT: ip is PRIMARY KEY, so a concurrent double-request loses the
+    // race here with a constraint error instead of minting a second trial.
+    await env.DB.prepare('INSERT INTO trials (ip, used, created_at) VALUES (?, 1, ?)').bind(ip, now).run();
+  } catch (e) {
+    return json({ error: 'Trial already used' }, 403);
+  }
+  await env.DB.prepare('INSERT INTO wallets (token, credits, created_at) VALUES (?, ?, ?)').bind(token, TRIAL_CREDITS, now).run();
   return json({ token, credits: TRIAL_CREDITS });
 }
 
@@ -100,12 +103,15 @@ async function handleRedeem(req, env) {
   const row = await env.DB.prepare('SELECT code, credits, redeemed FROM codes WHERE code = ?').bind(clean).first();
   if (!row) return json({ error: 'Unknown code.' }, 404);
   if (row.redeemed) return json({ error: 'This code was already redeemed.' }, 410);
-  const wallet = await getOrCreateWallet(env, token);
+  // Atomic claim: exactly one concurrent request flips redeemed 0 -> 1.
+  // The wallet top-up below only runs for the request that won the claim.
   const now = Date.now();
-  await env.DB.batch([
-    env.DB.prepare('UPDATE codes SET redeemed = 1, redeemed_at = ? WHERE code = ? AND redeemed = 0').bind(now, clean),
-    env.DB.prepare('UPDATE wallets SET credits = credits + ? WHERE token = ?').bind(row.credits, wallet),
-  ]);
+  const burn = await env.DB.prepare(
+    'UPDATE codes SET redeemed = 1, redeemed_at = ? WHERE code = ? AND redeemed = 0'
+  ).bind(now, clean).run();
+  if (!burn.meta || burn.meta.changes !== 1) return json({ error: 'This code was already redeemed.' }, 410);
+  const wallet = await getOrCreateWallet(env, token);
+  await env.DB.prepare('UPDATE wallets SET credits = credits + ? WHERE token = ?').bind(row.credits, wallet).run();
   const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(wallet).first();
   return json({ token: wallet, credits: w.credits });
 }
@@ -114,6 +120,14 @@ async function handleBalance(req, env) {
   const token = new URL(req.url).searchParams.get('token') || '';
   const w = await env.DB.prepare('SELECT credits FROM wallets WHERE token = ?').bind(token).first();
   return json({ credits: w ? w.credits : 0 });
+}
+
+/* Code already minted for a captured order (INNER JOIN: the code row must exist). */
+async function fulfilledCode(env, orderId) {
+  const r = await env.DB.prepare(
+    'SELECT o.code AS code, c.credits AS credits FROM orders o JOIN codes c ON c.code = o.code WHERE o.order_id = ? AND o.status = ?'
+  ).bind(orderId, 'captured').first();
+  return r && r.code && r.credits != null ? { code: r.code, credits: r.credits } : null;
 }
 
 /* ---------- PayPal ---------- */
@@ -160,10 +174,9 @@ async function handleCreateOrder(req, env) {
 async function handleCapture(req, env) {
   const { orderId } = await req.json().catch(() => ({}));
   if (!orderId) return json({ error: 'Missing orderId' }, 400);
-  const existing = await env.DB.prepare(
-    'SELECT o.code, c.credits FROM orders o JOIN codes c ON c.code = o.code WHERE o.order_id = ? AND o.status = ?'
-  ).bind(orderId, 'captured').first();
-  if (existing?.code) return json({ code: existing.code, credits: existing.credits });
+  // Idempotent: an already-fulfilled order returns the same code, never a new one.
+  const same = await fulfilledCode(env, orderId);
+  if (same) return json(same);
 
   const { token, base } = await paypalToken(env);
   const res = await fetch(`${base}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
@@ -176,12 +189,21 @@ async function handleCapture(req, env) {
   const p = packByUsd(amt);
   if (!res.ok || cap.status !== 'COMPLETED' || !p) return json({ error: 'Payment not completed' }, 402);
 
+  // Atomic finish: exactly one concurrent request flips created -> captured.
+  // The loser's code row is orphaned (unknown to anyone) and burned at once.
   const code = makeCode();
   const now = Date.now();
-  await env.DB.batch([
-    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, p.credits, now),
-    env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?').bind('captured', code, orderId),
-  ]);
+  await env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)')
+    .bind(code, p.credits, now).run();
+  const fin = await env.DB.prepare(
+    "UPDATE orders SET status = 'captured', code = ? WHERE order_id = ? AND status = 'created'"
+  ).bind(code, orderId).run();
+  if (!fin.meta || fin.meta.changes !== 1) {
+    await env.DB.prepare('UPDATE codes SET redeemed = 1 WHERE code = ?').bind(code).run();
+    const winner = await fulfilledCode(env, orderId);
+    if (winner) return json(winner);
+    return json({ error: 'Payment is being processed, please try again.' }, 409);
+  }
   return json({ code, credits: p.credits });
 }
 
@@ -228,10 +250,9 @@ async function handleStripeVerify(req, env) {
   const { sessionId } = await req.json().catch(() => ({}));
   if (!sessionId) return json({ error: 'Missing sessionId' }, 400);
   const key = 'stripe:' + sessionId;
-  const existing = await env.DB.prepare(
-    'SELECT o.code, c.credits FROM orders o JOIN codes c ON c.code = o.code WHERE o.order_id = ? AND o.status = ?'
-  ).bind(key, 'captured').first();
-  if (existing?.code) return json({ code: existing.code, credits: existing.credits });
+  // Idempotent: an already-fulfilled session returns the same code, never a new one.
+  const same = await fulfilledCode(env, key);
+  if (same) return json(same);
 
   // Verified server-side with Stripe: only PAID sessions mint codes, and the
   // credit amount comes from Stripe's reported amount_total, not the client.
@@ -242,12 +263,21 @@ async function handleStripeVerify(req, env) {
   const p = packByCents(s.amount_total);
   if (!res.ok || s.payment_status !== 'paid' || !p) return json({ error: 'Payment not completed' }, 402);
 
+  // Atomic finish: exactly one concurrent request flips created -> captured.
+  // The loser's code row is orphaned (unknown to anyone) and burned at once.
   const code = makeCode();
   const now = Date.now();
-  await env.DB.batch([
-    env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)').bind(code, p.credits, now),
-    env.DB.prepare('UPDATE orders SET status = ?, code = ? WHERE order_id = ?').bind('captured', code, key),
-  ]);
+  await env.DB.prepare('INSERT INTO codes (code, credits, redeemed, created_at) VALUES (?, ?, 0, ?)')
+    .bind(code, p.credits, now).run();
+  const fin = await env.DB.prepare(
+    "UPDATE orders SET status = 'captured', code = ? WHERE order_id = ? AND status = 'created'"
+  ).bind(code, key).run();
+  if (!fin.meta || fin.meta.changes !== 1) {
+    await env.DB.prepare('UPDATE codes SET redeemed = 1 WHERE code = ?').bind(code).run();
+    const winner = await fulfilledCode(env, key);
+    if (winner) return json(winner);
+    return json({ error: 'Payment is being processed, please try again.' }, 409);
+  }
   return json({ code, credits: p.credits });
 }
 
@@ -286,6 +316,23 @@ async function replicateRun(env, target, input, timeoutMs, pollMs) {
   return typeof out === 'string' ? out : out.url();
 }
 
+/* ---------- upload validation: size + real file type, server-side ---------- */
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+function validUploadImage(dataUrl) {
+  const m = /^data:(image\/(jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) return { ok: false, error: 'Upload must be a JPEG, PNG or WebP image.' };
+  let bin;
+  try { bin = atob(m[3]); } catch (e) { return { ok: false, error: 'Upload is not valid base64.' }; }
+  if (bin.length > MAX_UPLOAD_BYTES) return { ok: false, error: 'Image is too large (max 20 MB).' };
+  if (bin.length < 12) return { ok: false, error: 'Upload is not a real image file.' };
+  const b = (i) => bin.charCodeAt(i);
+  const isJpeg = b(0) === 0xFF && b(1) === 0xD8 && b(2) === 0xFF;
+  const isPng = b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4E && b(3) === 0x47;
+  const isWebp = bin.slice(0, 4) === 'RIFF' && bin.slice(8, 12) === 'WEBP';
+  if (!isJpeg && !isPng && !isWebp) return { ok: false, error: 'File is not a real JPEG, PNG or WebP image.' };
+  return { ok: true };
+}
+
 /* ---------- shared credit-gated GPU plumbing ---------- */
 // THE GATE: atomic debit. No valid token with credits -> false, $0 spent.
 async function debitWallet(env, token) {
@@ -322,6 +369,8 @@ async function handleExtend(req, env) {
   if (!image || !canvas) return json({ error: 'Missing image or canvas params' }, 400);
   const cw = canvas[0] | 0, ch = canvas[1] | 0;
   if (cw < 16 || ch < 16 || cw > 5000 || ch > 5000) return json({ error: 'Bad canvas size' }, 400);
+  const imgOk = validUploadImage(image);
+  if (!imgOk.ok) return json({ error: imgOk.error }, 400);
 
   // curl without a token, or with an empty wallet, cannot reach the GPU.
   if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
@@ -355,6 +404,8 @@ async function handleSharpen(req, env) {
   const { token, image, scale } = await req.json().catch(() => ({}));
   if (!image) return json({ error: 'Missing image' }, 400);
   const sc = scale === 2 ? 2 : 4;
+  const imgOkS = validUploadImage(image);
+  if (!imgOkS.ok) return json({ error: imgOkS.error }, 400);
 
   if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
 
@@ -395,6 +446,8 @@ async function handleUnblur(req, env) {
   if (!env.REPLICATE_API_TOKEN) return json({ error: 'AI backend not configured yet.' }, 503);
   const { token, image } = await req.json().catch(() => ({}));
   if (!image) return json({ error: 'Missing image' }, 400);
+  const imgOkU = validUploadImage(image);
+  if (!imgOkU.ok) return json({ error: imgOkU.error }, 400);
 
   if (!await debitWallet(env, token)) return json({ error: 'No credits — buy more to continue.' }, 402);
 

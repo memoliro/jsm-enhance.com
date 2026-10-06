@@ -346,7 +346,7 @@ function updateSizeInfo(C) {
     : `AI will paint ${extPx.toLocaleString()} px² of new background (blue tint).`;
   $('sizeNote').textContent = C.capped
     ? '⚠️ Capped at a safe maximum (4096 px side / 12 MP) to protect quality and processing.'
-    : 'AI paints at up to 1024 px, then the result is finished crisply at your chosen size.';
+    : 'AI paints at up to 2048 px, then the result is finished crisply at your chosen size.';
 }
 
 function updateExtendUI() {
