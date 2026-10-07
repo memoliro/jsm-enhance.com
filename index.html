@@ -31,7 +31,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261006k">
+<link rel="stylesheet" href="style.css?v=20261006m">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -755,7 +755,35 @@ document.addEventListener('DOMContentLoaded',()=>{
     });
   }
   matchExtendHandles();
-  window.addEventListener('resize', matchExtendHandles);
+  function matchHeroHeight(){
+    const a = document.getElementById('extendHeroBa');
+    const b = document.getElementById('heroBaWrap');
+    if(!a || !b) return;
+    const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+    const side = Math.abs(ar.top - br.top) < 12 && br.height > 40;
+    if(side){
+      a.style.aspectRatio = 'auto';
+      a.style.height = br.height + 'px';
+    } else {
+      a.style.height = '';
+      a.style.aspectRatio = '4 / 5';
+    }
+    const fw = a.clientWidth, fh = a.clientHeight;
+    const el = a.querySelector('.ba-placed');
+    if(!el || !fw || !fh) return;
+    const imgW = 2560, imgH = 1920, bx = 397.14, by = 702.86, bw = 1280, bh = 851.43;
+    const scale = Math.max(fw / imgW, fh / imgH);
+    const visW = fw / scale, visH = fh / scale;
+    const cropX = (imgW - visW) / 2, cropY = (imgH - visH) / 2;
+    el.style.left = ((bx - cropX) / visW * 100) + '%';
+    el.style.top = ((by - cropY) / visH * 100) + '%';
+    el.style.width = (bw / visW * 100) + '%';
+    el.style.height = (bh / visH * 100) + '%';
+  }
+  matchHeroHeight();
+  window.addEventListener('resize', () => { matchExtendHandles(); matchHeroHeight(); });
+  const pair = document.querySelector('.hero-pair');
+  if(pair && window.ResizeObserver) new ResizeObserver(matchHeroHeight).observe(pair);
   const ext = document.getElementById('ba-slider');
   if(ext && window.ResizeObserver) new ResizeObserver(matchExtendHandles).observe(ext);
 });
