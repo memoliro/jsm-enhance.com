@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     function setPos(x){
       const r=wrap.getBoundingClientRect();
       let p=((x-r.left)/r.width)*100;
-      p=Math.max(5,Math.min(95,p));
+      p=Math.max(0,Math.min(100,p));
       wrap.style.setProperty('--pos',p+'%');
     }
     wrap.addEventListener('pointerdown',e=>{dragging=true;wrap.setPointerCapture(e.pointerId);setPos(e.clientX);});
