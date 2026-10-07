@@ -22,7 +22,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261006h">
+<link rel="stylesheet" href="style.css?v=20261006i">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -729,6 +729,27 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
   bind(document.getElementById('extendHeroBa'));
   bind(document.getElementById('heroBaWrap'));
+  function matchExtendHandles(){
+    const src = document.getElementById('ba-slider');
+    if(!src) return;
+    const scale = src.clientWidth / 3000;
+    document.querySelectorAll('.hero-pair .ba-bar').forEach(bar => {
+      bar.style.width = (2 * scale) + 'px';
+      bar.style.left = (-1 * scale) + 'px';
+      bar.style.boxShadow = '0 0 ' + (10 * scale) + 'px rgba(0,0,0,.5)';
+    });
+    document.querySelectorAll('.hero-pair .ba-divider .ba-handle').forEach(h => {
+      h.style.padding = (5 * scale) + 'px ' + (12 * scale) + 'px';
+      h.style.fontSize = (0.78 * 16 * scale) + 'px';
+      h.style.fontFamily = 'Arial, Helvetica, sans-serif';
+      h.style.boxShadow = '0 ' + (2 * scale) + 'px ' + (10 * scale) + 'px rgba(0,0,0,.35)';
+      h.style.borderRadius = '999px';
+    });
+  }
+  matchExtendHandles();
+  window.addEventListener('resize', matchExtendHandles);
+  const ext = document.getElementById('ba-slider');
+  if(ext && window.ResizeObserver) new ResizeObserver(matchExtendHandles).observe(ext);
 });
 </script>
 
