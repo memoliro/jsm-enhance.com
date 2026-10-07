@@ -168,7 +168,7 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
 .hero{
   text-align:center;
   margin:56px auto 36px;
-  max-width:1480px;
+  max-width:1720px;
   position:relative;
 }
 .hero-badge,
@@ -193,15 +193,43 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
   margin:0;
   min-width:0;
 }
+#extendHeroBa{
+  aspect-ratio:4/3;
+}
+#extendHeroBa > img{
+  width:100%;
+  height:100%;
+  object-fit:fill;
+}
 #extendHeroBa .ba-top{
   background:#000;
 }
+#extendHeroBa .ba-placed{
+  left:15.51%;
+  top:36.61%;
+  width:50%;
+  height:44.35%;
+}
+#extendHeroBa .ba-handle{
+  width:2px;
+  background:#fff;
+  box-shadow:0 0 10px rgba(0,0,0,.5);
+}
+#extendHeroBa .ba-handle span{
+  padding:4px 8px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  letter-spacing:0;
+  border-radius:999px;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
+}
+.hero-pair .hero-ba:first-child{
+  flex:1.5 1 0;
+  max-width:960px;
+}
 .hero-ba-wrap .ba-placed{
   position:absolute;
-  left:-7.48%;
-  top:36.61%;
-  width:83.33%;
-  height:44.35%;
   object-fit:fill;
   max-width:none;
 }
