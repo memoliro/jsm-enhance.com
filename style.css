@@ -193,6 +193,9 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
   margin:0;
   min-width:0;
 }
+#extendHeroBa .ba-top{
+  background:#000;
+}
 .hero-ba-wrap .ba-placed{
   position:absolute;
   left:-7.48%;
