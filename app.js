@@ -352,7 +352,7 @@ function drawPreview() {
    Offsets are stored in output px; currentCanvas() clamps them so the photo
    always stays fully inside the canvas. */
 function previewHit(e) {
-  if (!pvImg || previewMode !== 'plan' || activeTool !== 'extend' || !imgEl) return false;
+  if (!pvImg || previewMode !== 'planned' || activeTool !== 'extend' || !imgEl) return false;
   const c = $('previewCanvas'), r = c.getBoundingClientRect();
   const x = (e.clientX - r.left) * (c.width / r.width);
   const y = (e.clientY - r.top) * (c.height / r.height);
