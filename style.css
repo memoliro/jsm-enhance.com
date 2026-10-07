@@ -213,12 +213,15 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
   aspect-ratio:4/3;
 }
 #extendHeroBa > img{
+  position:absolute;
+  inset:0;
   width:100%;
   height:100%;
-  object-fit:fill;
+  object-fit:cover;
+  object-position:left center;
 }
 #extendHeroBa .ba-top{
-  background:#000;
+  background:transparent;
 }
 #extendHeroBa .ba-placed{
   left:15.51%;
