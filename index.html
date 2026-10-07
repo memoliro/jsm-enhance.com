@@ -22,7 +22,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261006d">
+<link rel="stylesheet" href="style.css?v=20261006e">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -68,15 +68,27 @@
       <span>✓ No account</span><span>✓ No subscription</span><span>✓ Credits never expire</span><span>✓ Private — nothing stored</span>
     </div>
 
-    <div class="hero-visual hero-ba" aria-hidden="false">
-      <div class="ba-wrap hero-ba-wrap" id="heroBaWrap" style="--pos:58%">
-        <img id="heroAfter" src="./img/new-hero-sharp.png" alt="AI-sharpened photo result">
-        <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-13pct.png" alt="Blurry original photo before AI enhancement">
-        <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
-        <span class="ba-tag ba-tag-l">BEFORE</span>
-        <span class="ba-tag ba-tag-r">AFTER</span>
+    <div class="hero-pair">
+      <div class="hero-visual hero-ba">
+        <div class="ba-wrap hero-ba-wrap" id="extendHeroBa" style="--pos:58%">
+          <img src="./img/extend-hero-after.jpg" alt="Extended photo">
+          <div class="ba-top">
+            <img class="ba-placed" src="./img/extend-hero-before.jpg" alt="Original photo">
+          </div>
+          <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+          <span class="ba-tag ba-tag-l">BEFORE</span>
+          <span class="ba-tag ba-tag-r">AFTER</span>
+        </div>
       </div>
-    </div>
+      <div class="hero-visual hero-ba">
+        <div class="ba-wrap hero-ba-wrap" id="heroBaWrap" style="--pos:58%">
+          <img id="heroAfter" src="./img/new-hero-sharp.png" alt="AI-sharpened photo result">
+          <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-13pct.png" alt="Blurry original photo before AI enhancement">
+          <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+          <span class="ba-tag ba-tag-l">BEFORE</span>
+          <span class="ba-tag ba-tag-r">AFTER</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -684,30 +696,33 @@ initDemoSlider('ba-slider2', 'ba-stage2', 'ba-clip2', 'ba-divider2', 3000);
 <script>
 // Hero before/after - 20% blur - BEFORE / AFTER only
 document.addEventListener('DOMContentLoaded',()=>{
-  const wrap=document.getElementById('heroBaWrap');
-  if(!wrap) return;
-  let dragging=false;
-  function setPos(x){
-    const r=wrap.getBoundingClientRect();
-    let p=((x-r.left)/r.width)*100;
-    p=Math.max(5,Math.min(95,p));
-    wrap.style.setProperty('--pos',p+'%');
-  }
-  wrap.addEventListener('pointerdown',e=>{dragging=true;wrap.setPointerCapture(e.pointerId);setPos(e.clientX);});
-  wrap.addEventListener('pointermove',e=>{if(dragging) setPos(e.clientX);});
-  wrap.addEventListener('pointerup',()=>dragging=false);
-  wrap.addEventListener('pointerleave',()=>dragging=false);
-  setTimeout(()=>{
-    wrap.style.transition='--pos 0.9s ease';
-    wrap.style.setProperty('--pos','18%');
+  function bind(wrap){
+    if(!wrap) return;
+    let dragging=false;
+    function setPos(x){
+      const r=wrap.getBoundingClientRect();
+      let p=((x-r.left)/r.width)*100;
+      p=Math.max(5,Math.min(95,p));
+      wrap.style.setProperty('--pos',p+'%');
+    }
+    wrap.addEventListener('pointerdown',e=>{dragging=true;wrap.setPointerCapture(e.pointerId);setPos(e.clientX);});
+    wrap.addEventListener('pointermove',e=>{if(dragging) setPos(e.clientX);});
+    wrap.addEventListener('pointerup',()=>dragging=false);
+    wrap.addEventListener('pointerleave',()=>dragging=false);
     setTimeout(()=>{
-      wrap.style.setProperty('--pos','82%');
+      wrap.style.transition='--pos 0.9s ease';
+      wrap.style.setProperty('--pos','18%');
       setTimeout(()=>{
-        wrap.style.setProperty('--pos','58%');
-        setTimeout(()=>{wrap.style.transition='';},900);
+        wrap.style.setProperty('--pos','82%');
+        setTimeout(()=>{
+          wrap.style.setProperty('--pos','58%');
+          setTimeout(()=>{wrap.style.transition='';},900);
+        },900);
       },900);
-    },900);
-  },500);
+    },500);
+  }
+  bind(document.getElementById('extendHeroBa'));
+  bind(document.getElementById('heroBaWrap'));
 });
 </script>
 

@@ -168,8 +168,43 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
 .hero{
   text-align:center;
   margin:56px auto 36px;
-  max-width:820px;
+  max-width:1480px;
   position:relative;
+}
+.hero-badge,
+.hero h1,
+.hero .sub,
+.hero .trust-chips{
+  max-width:820px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.hero-pair{
+  display:flex;
+  gap:18px;
+  justify-content:center;
+  align-items:stretch;
+  margin-top:32px;
+}
+.hero-pair .hero-ba{
+  flex:1 1 0;
+  width:100%;
+  max-width:720px;
+  margin:0;
+  min-width:0;
+}
+.hero-ba-wrap .ba-placed{
+  position:absolute;
+  left:-7.48%;
+  top:36.61%;
+  width:83.33%;
+  height:44.35%;
+  object-fit:fill;
+  max-width:none;
+}
+@media (max-width:860px){
+  .hero-pair{flex-direction:column;align-items:center;}
+  .hero-pair .hero-ba{max-width:720px;}
 }
 .hero-badge{
   display:inline-flex;align-items:center;gap:8px;
