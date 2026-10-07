@@ -22,7 +22,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261006g">
+<link rel="stylesheet" href="style.css?v=20261006h">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -75,7 +75,10 @@
           <div class="ba-top">
             <img class="ba-placed" src="./img/extend-hero-before.jpg" alt="Original photo">
           </div>
-          <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+          <div class="ba-divider">
+            <div class="ba-bar"></div>
+            <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+          </div>
           <span class="ba-tag ba-tag-l">BEFORE</span>
           <span class="ba-tag ba-tag-r">AFTER</span>
         </div>
@@ -84,7 +87,10 @@
         <div class="ba-wrap hero-ba-wrap" id="heroBaWrap" style="--pos:58%">
           <img id="heroAfter" src="./img/new-hero-sharp.png" alt="AI-sharpened photo result">
           <img id="heroBefore" class="ba-top" src="./img/new-hero-blurred-13pct.png" alt="Blurry original photo before AI enhancement">
-          <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+          <div class="ba-divider">
+            <div class="ba-bar"></div>
+            <div class="ba-handle" aria-hidden="true"><span>◂ ▸</span></div>
+          </div>
           <span class="ba-tag ba-tag-l">BEFORE</span>
           <span class="ba-tag ba-tag-r">AFTER</span>
         </div>

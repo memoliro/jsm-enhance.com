@@ -210,19 +210,52 @@ html[data-theme="dark"] .header-nav .ws-tab.active{background:#fff;color:#0b0e14
   width:50%;
   height:44.35%;
 }
-#extendHeroBa .ba-handle{
+.hero-pair .ba-divider{
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:var(--pos);
+  z-index:5;
+  pointer-events:none;
+}
+.hero-pair .ba-divider .ba-bar{
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:-1px;
   width:2px;
   background:#fff;
   box-shadow:0 0 10px rgba(0,0,0,.5);
 }
-#extendHeroBa .ba-handle span{
-  padding:4px 8px;
-  font-size:11px;
+.hero-pair .ba-divider .ba-handle{
+  position:absolute;
+  top:50%;
+  left:0;
+  bottom:auto;
+  width:auto;
+  height:auto;
+  transform:translate(-50%,-50%);
+  background:#fff;
+  color:#111;
+  border-radius:999px;
+  padding:5px 12px;
+  font-size:.78rem;
   font-weight:800;
   line-height:1;
-  letter-spacing:0;
-  border-radius:999px;
-  box-shadow:0 2px 8px rgba(0,0,0,.35);
+  white-space:nowrap;
+  box-shadow:0 2px 10px rgba(0,0,0,.35);
+  pointer-events:auto;
+  cursor:ew-resize;
+}
+.hero-pair .ba-divider .ba-handle span{
+  position:static;
+  transform:none;
+  background:none;
+  color:inherit;
+  padding:0;
+  font-size:inherit;
+  font-weight:inherit;
+  box-shadow:none;
 }
 .hero-pair .hero-ba:first-child{
   flex:1.5 1 0;
