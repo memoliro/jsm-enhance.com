@@ -22,7 +22,7 @@
 // light-first: default to light unless a saved preference exists
 (function(){try{var t=localStorage.getItem('jsm-extend-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="style.css?v=20261005c">
+<link rel="stylesheet" href="style.css?v=20261006d">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What does the AI actually do?","acceptedAnswer":{"@type":"Answer","text":"It outpaints: the AI studies your photo's content, lighting and style, then generates new pixels around the edges to fill the larger canvas. Your original photo is never altered or cropped."}},
@@ -349,7 +349,7 @@ initDemoSlider('ba-slider2', 'ba-stage2', 'ba-clip2', 'ba-divider2', 3000);
           <h3 class="ctl-h">Social &amp; standard presets</h3>
           <div class="preset-grid" id="presetGrid"></div>
           <label class="prompt-label">Describe the scene <span class="muted" style="font-weight:400">(optional — helps AI)</span>
-            <input type="text" id="promptInput" maxlength="200" placeholder="e.g. sunny beach with palm trees">
+            <textarea id="promptInput" rows="3" maxlength="200" placeholder="e.g. sunny beach with palm trees"></textarea>
           </label>
           <div class="chain-row">
             <label class="sh-check"><input type="checkbox" id="chainSharpen"> ✨ Also enhance result <span class="muted small">+1 credit</span></label>
